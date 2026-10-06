@@ -78,4 +78,17 @@ describe('createLoop', () => {
     h.frame(60);
     expect(h.steps).toBe(1);
   });
+
+  it('pause() called inside a step stops the remaining ticks of that frame', () => {
+    let cb: ((t: number) => void) | null = null;
+    let steps = 0;
+    const loop = createLoop(() => { steps++; if (steps === 2) loop.pause(); }, () => {}, 1000 / 60, {
+      request: (f) => { cb = f; return 1; },
+      cancel: () => { cb = null; },
+    });
+    loop.start();
+    cb!(0);
+    cb!(240); // would run 4 ticks
+    expect(steps).toBe(2);
+  });
 });

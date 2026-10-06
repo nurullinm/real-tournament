@@ -88,6 +88,8 @@ async function boot(): Promise<void> {
 
   /** Pauses for reasons outside the player's control (background, portrait); resumes on its own when they clear. */
   let autoPaused = false;
+  /** false while Telegram reports the mini app as deactivated (collapsed); resize events must not restart play then */
+  let tgActive = true;
   function suspendPlay(): void {
     if (session && loop.running) {
       loop.pause();
@@ -98,11 +100,11 @@ async function boot(): Promise<void> {
     audio.suspend();
   }
   function resumePlay(): void {
-    if (autoPaused && session && !ui.open && platform.isLandscape() && !document.hidden) {
+    if (autoPaused && session && !ui.open && platform.isLandscape() && !document.hidden && tgActive) {
       autoPaused = false;
       loop.resume();
     }
-    if (!document.hidden && platform.isLandscape()) audio.resume();
+    if (!document.hidden && platform.isLandscape() && tgActive) audio.resume();
   }
 
   function pauseMenu(): void {
@@ -155,7 +157,11 @@ async function boot(): Promise<void> {
 
   window.addEventListener('pointerdown', () => { void audio.unlock().then(() => { if (!session) audio.music(settings.sound); }); void platform.lockLandscape(); }, { once: true });
   platform.onResize(resize);
-  platform.onVisibility((visible) => (visible ? resumePlay() : suspendPlay()));
+  platform.onVisibility((visible) => {
+    tgActive = visible;
+    if (visible) resumePlay();
+    else suspendPlay();
+  });
   window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && session && loop.running) pauseMenu(); });
   window.addEventListener('keydown', () => { void audio.unlock(); }, { once: true });
 

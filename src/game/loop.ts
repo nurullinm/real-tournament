@@ -39,7 +39,7 @@ export function createLoop(
     if (last !== null) acc += Math.min(Math.max(0, t - last), tickMs * maxTicksPerFrame);
     last = t;
     let n = 0;
-    while (acc + 1e-6 >= tickMs && n < maxTicksPerFrame) {
+    while (running && acc + 1e-6 >= tickMs && n < maxTicksPerFrame) {
       step();
       acc -= tickMs;
       n++;
