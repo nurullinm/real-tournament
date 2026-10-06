@@ -203,3 +203,8 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .ui.kb { top: var(--vvt, 0px); bottom: auto; height: var(--vvh, 100%); padding-top: 6px; padding-bottom: 6px; }
 .ui.kb .win { height: min(348px, calc(var(--vvh, 100vh) - 12px)); }
 .ui.kb .win.tall { height: min(420px, calc(var(--vvh, 100vh) - 12px)); }
+/* lobby: "Players n/4" with my card opposite on the right; every card carries its player's colour */
+.playerhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.playerhead .pl { flex: 0 1 auto; max-width: 62%; }
+.pl { border: 2px solid var(--pc, transparent); background: color-mix(in srgb, var(--pc, #15184a) 22%, #15184a); }
+.pl.me { background: color-mix(in srgb, var(--pc, #15184a) 45%, #15184a); outline: none; }

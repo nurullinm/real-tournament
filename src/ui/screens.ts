@@ -308,19 +308,18 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     }
 
     if (tab === 'players') {
-      const dotColor = (p: LobbyPlayer): string => SIDE_CSS[ctf ? p.team : p.color] ?? '#fff';
-      const players = h('div', { class: 'pgrid' });
-      for (const p of v.players) {
-        players.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
-          h('span', { class: 'dot', style: `background:${dotColor(p)}` }),
-          h('span', { class: 'pname', text: p.name }),
-          h('span', { class: 'ptag', text: p.host ? '★' : '' })));
-      }
+      const cardColor = (p: LobbyPlayer): string => SIDE_CSS[ctf ? p.team : p.color] ?? '#fff';
+      const card = (p: LobbyPlayer): HTMLElement => h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}`, style: `--pc:${cardColor(p)}` },
+        h('span', { class: 'dot', style: `background:${cardColor(p)}` }),
+        h('span', { class: 'pname', text: p.name }),
+        h('span', { class: 'ptag', text: p.host ? '★' : '' }));
+      // "Players 1/4" on the left, my own card (in my vest or team colour) opposite it on the right; the others below
+      const others = v.players.filter((p) => p.slot !== v.slot);
       body.push(
         h('div', { class: 'coderow' }, h('div', { class: 'code-big', text: v.code }), button(t('mp.share'), () => shareRoom(v.code), 'chip')),
-        h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }),
-        players,
+        h('div', { class: 'playerhead' }, h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }), me ? card(me) : h('div')),
       );
+      if (others.length > 0) body.push(h('div', { class: 'pgrid' }, ...others.map(card)));
       if (ctf) {
         // two teams of two: pick one (a full team is disabled)
         const teamRow = h('div', { class: 'teamrow' });
@@ -382,7 +381,6 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     }
     menu.append(win({
       title: t('mp.title'),
-      note: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}`,
       onBack: handlers.mpLeave,
       bodyClass: 'mp compact',
       tall: true,
