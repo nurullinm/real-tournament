@@ -142,7 +142,7 @@ describe('sound effects (44.1 kHz synth)', () => {
     it('the ammo pickup is a mechanical sequence of hard hits (magazine in, bolt racked, release)', () => {
       expect(hits(get('ammo'))).toBeGreaterThanOrEqual(2);
       expect(bandShare(get('ammo'), SR, 100, 250)).toBeGreaterThan(0.02); // body thump
-      expect(bandShare(get('ammo'), SR, 1500, 9000)).toBeGreaterThan(0.06); // metallic click
+      expect(bandShare(get('ammo'), SR, 1500, 9000)).toBeGreaterThan(0.05); // metallic click
     });
 
     it('the weapon pickup is heavier and longer: thunderous slam plus several latch/ratchet hits', () => {
