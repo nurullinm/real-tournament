@@ -14,12 +14,18 @@ interface Call { name: string; args: unknown[] }
 
 function mockCtx() {
   const calls: Call[] = [];
+  let fontPx = 12;
   const ctx = new Proxy({}, {
     get: (_t, name: string) => (...args: unknown[]) => {
       calls.push({ name, args });
-      return name === 'measureText' ? { width: String(args[0]).length * 7 } : undefined;
+      // text width scales with the current font size, like a real canvas
+      return name === 'measureText' ? { width: String(args[0]).length * fontPx * 0.66 } : undefined;
     },
-    set: (_t, name: string, value: unknown) => { calls.push({ name: `set:${name}`, args: [value] }); return true; },
+    set: (_t, name: string, value: unknown) => {
+      calls.push({ name: `set:${name}`, args: [value] });
+      if (name === 'font') fontPx = Number(/(\d+(?:\.\d+)?)px/.exec(String(value))?.[1] ?? fontPx);
+      return true;
+    },
   }) as unknown as CanvasRenderingContext2D;
   return { ctx, calls };
 }
@@ -190,5 +196,33 @@ describe('HUD in Russian', () => {
     } finally {
       setLang('en');
     }
+  });
+});
+
+describe('order pills', () => {
+  /** font in effect at each fillText of a pill label */
+  function pillFonts(lang: 'en' | 'ru'): { sizes: number[]; labels: string[]; widths: number[] } {
+    setLang(lang);
+    try {
+      const layout = computeLayout(956, 440, safe, true);
+      const rec = mockCtx();
+      drawControls(rec.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 2, 1);
+      let font = 0;
+      const sizes: number[] = []; const labels: string[] = [];
+      for (const c of rec.calls) {
+        if (c.name === 'set:font') font = Number(/(\d+)px/.exec(String(c.args[0]))?.[1] ?? 0);
+        if (c.name === 'fillText' && ['DEFEND', 'ATTACK', 'FREE', 'ЗАЩИТА', 'АТАКА', 'СВОБОДА'].includes(String(c.args[0]))) { sizes.push(font); labels.push(String(c.args[0])); }
+      }
+      return { sizes, labels, widths: layout.buttons.filter((b) => b.shape === 'pill').map((b) => (b.shape === 'pill' ? b.w : 0)) };
+    } finally {
+      setLang('en');
+    }
+  }
+  it.each(['en', 'ru'] as const)('%s: the three pills use the same font size and the same button size', (lang) => {
+    const r = pillFonts(lang);
+    expect(r.labels).toHaveLength(3);
+    expect(new Set(r.sizes).size).toBe(1);
+    expect(r.sizes[0]).toBeGreaterThan(6);
+    expect(new Set(r.widths).size).toBe(1);
   });
 });

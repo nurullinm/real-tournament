@@ -118,6 +118,18 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
   ctx.textBaseline = 'middle';
   circle(ctx, s.cx + stick.x, s.cy + stick.y, s.knobR, stick.active ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.26)', 'rgba(255,255,255,0.75)');
 
+  // all order pills share one font size: the largest at which the longest label still fits
+  const pills = layout.buttons.filter((b): b is Extract<typeof b, { shape: 'pill' }> => b.shape === 'pill');
+  let pillFont = pills.length ? Math.round(pills[0]!.h * 0.34) : 0;
+  for (const b of pills) {
+    const label = orderShort(Number(b.id.slice(5)));
+    for (let i = 0; i < 12 && pillFont > 7; i++) {
+      ctx.font = `700 ${pillFont}px system-ui, sans-serif`;
+      if (ctx.measureText(label).width <= b.w - 12) break;
+      pillFont -= 1;
+    }
+  }
+
   for (const b of layout.buttons) {
     const on = held.has(b.id);
     const chosen = b.id === `order${activeOrder}`;
@@ -132,13 +144,7 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
       ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
       const label = orderShort(Number(b.id.slice(5)));
-      let size = Math.round(b.h * 0.34);
-      ctx.font = `700 ${size}px system-ui, sans-serif`;
-      // longer (translated) labels shrink to fit inside the pill
-      for (let i = 0; i < 8 && size > 7 && ctx.measureText(label).width > b.w - 12; i++) {
-        size -= 1;
-        ctx.font = `700 ${size}px system-ui, sans-serif`;
-      }
+      ctx.font = `700 ${pillFont}px system-ui, sans-serif`;
       ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2);
       continue;
     }
