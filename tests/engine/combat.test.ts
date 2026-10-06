@@ -6,8 +6,6 @@ import { CMD_FIRE, type Match } from '../../src/engine/types';
 import { stepFighterPhysics } from '../../src/engine/physics';
 import { duel, place, roomMatch, roomMatchWith, syncWindow } from './helpers';
 
-const noCycle = () => { throw new Error('unexpected cycle'); };
-
 function twoFighters(): Match {
   const m = roomMatch();
   duel(m);
@@ -153,7 +151,7 @@ describe('pickups', () => {
     place(f, 100, 160, true);
     syncWindow(m, f);
     f.hp = 50;
-    scanPickups(m, f, 0, noCycle);
+    scanPickups(m, f, 0);
     expect(f.hp).toBe(75);
     expect(m.pobjs[0]!.type).toBe(5 | 0x40);
     m.tick = 249;
@@ -170,7 +168,7 @@ describe('pickups', () => {
     const f = m.fighters[0]!;
     place(f, 100, 160, true);
     syncWindow(m, f);
-    scanPickups(m, f, 0, noCycle);
+    scanPickups(m, f, 0);
     expect(m.pobjs[0]!.type).toBe(5);
   });
 
@@ -186,7 +184,7 @@ describe('pickups', () => {
     place(f, 100, 160, true);
     syncWindow(m, f);
     f.ammo[2] = 0;
-    scanPickups(m, f, 0, noCycle);
+    scanPickups(m, f, 0);
     expect(f.ammo[2]).toBe(2);
     expect(f.pendingWeapon).toBe(2);
   });

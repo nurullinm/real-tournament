@@ -3,11 +3,12 @@ import { canShoot, giveAmmo, setHp, setX } from './fighter';
 import { emitFx, emitSound, returnFlag, syncPoWindow, takeFlag } from './lifecycle';
 import type { Fighter, Match } from './types';
 import { CMD_ACTION } from './types';
+import { getOnCycle } from './vehicles';
 
 const RESPAWN_TICKS = 250;
 
 /** Pickup scan at the end of G_MoveFighter. `cmd` is the masked command (action bit used for lifts/cycles). */
-export function scanPickups(m: Match, f: Fighter, cmd: number, getOnCycle: (m: Match, f: Fighter, pobj: number) => void): void {
+export function scanPickups(m: Match, f: Fighter, cmd: number): void {
   if (f.hp <= 0) return;
   syncPoWindow(m, f);
   for (let i = f.leftPoM1 + 1; i <= f.rightPo; i++) {
