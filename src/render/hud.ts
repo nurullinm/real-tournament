@@ -97,8 +97,82 @@ function circle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   }
 }
 
+/** Arc from angle a0 to a1 (clockwise, radians) with an arrow head at the end - one half of a "cycle" ring. */
+function arcArrow(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, a0: number, a1: number, head: number): void {
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, a0, a1);
+  ctx.stroke();
+  const ex = cx + r * Math.cos(a1); const ey = cy + r * Math.sin(a1);
+  const tx = -Math.sin(a1); const ty = Math.cos(a1); // direction of travel at the end of the arc
+  const hx = (ang: number): number => tx * Math.cos(ang) - ty * Math.sin(ang);
+  const hy = (ang: number): number => tx * Math.sin(ang) + ty * Math.cos(ang);
+  ctx.beginPath();
+  ctx.moveTo(ex - head * hx(0.55), ey - head * hy(0.55));
+  ctx.lineTo(ex, ey);
+  ctx.lineTo(ex - head * hx(-0.55), ey - head * hy(-0.55));
+  ctx.stroke();
+}
+
+/** Silhouettes of the three weapons (saw, laser pistol, bazooka) centred on (cx, cy), `s` = icon half-size. */
+function weaponGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, weapon: number): void {
+  ctx.beginPath();
+  if (weapon === 0) {
+    // circular saw blade: disc with teeth
+    const teeth = 10;
+    for (let i = 0; i < teeth * 2; i++) {
+      const ang = (Math.PI * i) / teeth;
+      const rad = i % 2 === 0 ? s * 0.95 : s * 0.66;
+      const x = cx + rad * Math.cos(ang); const y = cy + rad * Math.sin(ang);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+  if (weapon === 2) {
+    // bazooka: long tube, flared muzzle, shoulder block and grip
+    ctx.rect(cx - s * 0.95, cy - s * 0.18, s * 1.7, s * 0.36);
+    ctx.rect(cx + s * 0.7, cy - s * 0.3, s * 0.28, s * 0.6);
+    ctx.rect(cx - s * 0.95, cy - s * 0.3, s * 0.34, s * 0.6);
+    ctx.moveTo(cx - s * 0.1, cy + s * 0.18);
+    ctx.lineTo(cx + s * 0.18, cy + s * 0.18);
+    ctx.lineTo(cx + s * 0.1, cy + s * 0.62);
+    ctx.lineTo(cx - s * 0.18, cy + s * 0.62);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  // laser pistol: body, barrel and a slanted grip
+  ctx.rect(cx - s * 0.8, cy - s * 0.3, s * 1.3, s * 0.42);
+  ctx.rect(cx + s * 0.5, cy - s * 0.18, s * 0.42, s * 0.2);
+  ctx.moveTo(cx - s * 0.5, cy + s * 0.12);
+  ctx.lineTo(cx - s * 0.2, cy + s * 0.12);
+  ctx.lineTo(cx - s * 0.3, cy + s * 0.7);
+  ctx.lineTo(cx - s * 0.62, cy + s * 0.7);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** Swap-weapon button: the current weapon inside a two-arrow "cycle" ring (tap = next weapon). */
+function weaponSwapIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, weapon: number): void {
+  const ring = r * 0.8;
+  ctx.lineWidth = Math.max(1.6, r * 0.09);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+  arcArrow(ctx, cx, cy, ring, (-150 * Math.PI) / 180, (-35 * Math.PI) / 180, r * 0.3);
+  arcArrow(ctx, cx, cy, ring, (30 * Math.PI) / 180, (145 * Math.PI) / 180, r * 0.3);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  weaponGlyph(ctx, cx, cy, r * 0.46, weapon);
+}
+
 /** Translucent shooter controls: joystick with a knob, round action buttons on an arc, small pills for ally orders. */
-export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout, held: ReadonlySet<ButtonId>, stick: StickState, dpr: number, activeOrder = -1): void {
+export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout, held: ReadonlySet<ButtonId>, stick: StickState, dpr: number, activeOrder = -1, weapon = 1): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const s = layout.stick;
   circle(ctx, s.cx, s.cy, s.r, 'rgba(255,255,255,0.09)', 'rgba(255,255,255,0.32)');
@@ -172,13 +246,9 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
         arrow(ctx, b.cx + b.r * 0.25, b.cy - k, b.cx + b.r * 0.25, b.cy + k, b.r * 0.28);
         break;
       }
-      case 'weaponNext': {
-        // swap: right arrow over left arrow
-        const k = b.r * 0.5;
-        arrow(ctx, b.cx - k, b.cy - b.r * 0.22, b.cx + k, b.cy - b.r * 0.22, b.r * 0.3);
-        arrow(ctx, b.cx + k, b.cy + b.r * 0.22, b.cx - k, b.cy + b.r * 0.22, b.r * 0.3);
+      case 'weaponNext':
+        weaponSwapIcon(ctx, b.cx, b.cy, b.r, weapon);
         break;
-      }
     }
   }
 }

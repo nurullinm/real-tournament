@@ -118,9 +118,9 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 /* disabled menu entry */
 .btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; background: #15184a; color: var(--muted); }
 
-/* the three ally-command buttons in the pause window: identical size and type, long labels wrap to two lines */
-.prow.wrap { flex-wrap: nowrap; align-items: stretch; }
-.prow.wrap .btn.chip { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 4px 6px; font-size: 12px; line-height: 1.15; letter-spacing: 0.03em; white-space: normal; text-align: center; display: flex; align-items: center; justify-content: center; overflow-wrap: anywhere; }
+/* the three ally commands in the pause window: full-width rows, one line of text each, identical size and type */
+.prow.wrap { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.prow.wrap .btn.chip { flex: 0 0 auto; width: 100%; min-height: 40px; padding: 6px 12px; font-size: 13px; letter-spacing: 0.05em; white-space: nowrap; text-align: center; }
 
 /* pause window rhythm: 8 px between neighbouring buttons and between a heading and its buttons, 14 px between sections */
 .win-body.pause { gap: 14px; padding-top: 10px; }
@@ -128,5 +128,5 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .win-body.pause .plabel { margin: 0; }
 .win-body.pause .prow { gap: 8px; }
 .win .tabs { gap: 8px; }
-.win-body.pause .chip { min-height: 44px; }
+.win-body.pause .chip { min-height: 40px; }
 .ui.menu .col { gap: 8px; }

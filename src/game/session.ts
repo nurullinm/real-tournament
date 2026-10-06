@@ -171,6 +171,6 @@ export class GameSession {
     }
     drawHud(ctx, m, 0, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
     if (this.toast) drawToast(ctx, this.toast.text, { w: f.w, h: f.h, dpr: f.dpr }, f.safe, f.safe.t + 74);
-    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr, this.allyOrder);
+    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr, this.allyOrder, m.fighters[0]!.currentWeapon);
   }
 }

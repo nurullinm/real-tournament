@@ -226,3 +226,34 @@ describe('order pills', () => {
     expect(new Set(r.widths).size).toBe(1);
   });
 });
+
+describe('weapon swap button', () => {
+  const layout = computeLayout(956, 440, safe, false);
+  const swap = layout.buttons.find((b) => b.id === 'weaponNext')!;
+  const draw = (weapon: number) => {
+    const rec = mockCtx();
+    drawControls(rec.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 2, -1, weapon);
+    return rec.calls;
+  };
+
+  it('shows the current weapon inside a two-arrow cycle ring, not a pair of back-and-forth arrows', () => {
+    if (swap.shape !== 'circle') throw new Error('swap must be round');
+    for (const w of [0, 1, 2]) {
+      const calls = draw(w);
+      const ring = calls.filter((c) => c.name === 'arc' && c.args[0] === swap.cx && c.args[1] === swap.cy && Math.abs(Number(c.args[2]) - swap.r * 0.8) < 0.01);
+      expect(ring, `weapon ${w}`).toHaveLength(2); // two arcs, each with its own arrow head
+      expect(calls.some((c) => c.name === 'fillText' && /[⇄⇅↔]/.test(String(c.args[0])))).toBe(false);
+    }
+  });
+
+  it('draws a different silhouette for the saw, the laser pistol and the bazooka', () => {
+    const [a, b, c] = [0, 1, 2].map((w) => JSON.stringify(draw(w)));
+    expect(new Set([a, b, c]).size).toBe(3);
+  });
+
+  it('defaults to the laser pistol when no weapon is given', () => {
+    const rec = mockCtx();
+    drawControls(rec.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 2);
+    expect(JSON.stringify(rec.calls)).toBe(JSON.stringify(draw(1)));
+  });
+});
