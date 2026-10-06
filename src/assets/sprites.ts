@@ -1,4 +1,5 @@
 import { parseChars } from './chars';
+import { buildSkins } from './skins';
 import type { CharsData } from './types';
 
 export interface Sprites {
@@ -13,6 +14,8 @@ export interface Sprites {
   title: ImageBitmap;
   selection: ImageBitmap;
   chars: CharsData;
+  /** skins[skin][sheet]: sheets with a repainted vest (assets/skins.ts); absent in headless tests */
+  skins?: ImageBitmap[][];
 }
 
 async function image(base: string, name: string): Promise<ImageBitmap> {
@@ -33,5 +36,6 @@ export async function loadSprites(base = 'original/'): Promise<Sprites> {
     ...[0, 1, 2, 3].map((i) => image(base, `m${i}.png`)),
   ]);
   const chars = parseChars(new Uint8Array(await (await fetch(`${base}chars`)).arrayBuffer()));
-  return { tiles, energy, panel, bg, menu, logo, title, selection, sheets, chars };
+  const skins = await buildSkins(sheets, (s) => chars.subimages.filter((si) => si.sheet === s && si.w > 0 && si.h > 0));
+  return { tiles, energy, panel, bg, menu, logo, title, selection, sheets, chars, skins };
 }

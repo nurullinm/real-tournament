@@ -92,6 +92,11 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
   applyStatic();
   onLangChange(applyStatic);
   root.append(menu, over, pauseBtn, rotate);
+  // a tap anywhere outside a text field closes the on-screen keyboard
+  root.addEventListener('pointerdown', (e) => {
+    const a = document.activeElement;
+    if (a instanceof HTMLInputElement && e.target !== a) a.blur();
+  }, true);
   let isOpen = false;
 
   const open = (layer: HTMLElement): void => {
@@ -208,8 +213,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
 
   /** `inline`: label on the left and the field on the right, like every other settings row */
   const nickField = (inline = false): HTMLElement => {
-    const input = h('input', { class: 'input', type: 'text', maxlength: NAME_MAX, placeholder: t('mp.nick.ph'), 'aria-label': t('mp.nick'), autocomplete: 'off', value: settings.nickname }) as HTMLInputElement;
+    const input = h('input', { class: 'input', type: 'text', maxlength: NAME_MAX, placeholder: t('mp.nick.ph'), 'aria-label': t('mp.nick'), autocomplete: 'off', enterkeyhint: 'done', value: settings.nickname }) as HTMLInputElement;
     input.addEventListener('input', () => { settings.nickname = cleanName(input.value, ''); save(); });
+    input.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') input.blur(); }); // Enter / "Done" closes the keyboard
     if (inline) return h('div', { class: 'row' }, h('div', { class: 'label', text: t('settings.nickname') }), input);
     return h('div', { class: 'field' }, h('div', { class: 'plabel', text: t('mp.nick') }), input);
   };

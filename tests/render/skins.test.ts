@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOT_SKIN, isVestOrange, tintVest } from '../../src/assets/skins';
+import { BOT_SKIN, hasHead, isVestOrange, paintSheet, tintVest } from '../../src/assets/skins';
 import { createMatch, skinFor } from '../../src/engine/match';
 import { botHooks } from '../../src/bots';
 import { CTF_OPTS, DM_OPTS, REAL_ASSETS, REAL_MAPS } from '../engine/real';
@@ -67,6 +67,29 @@ describe('vest skins', () => {
     const f = dm.fighters[1]!;
     f.human = false;
     expect(skinFor(dm, f)).toBe(BOT_SKIN); // a human who leaves turns into a bot
+  });
+});
+
+describe('per-sprite head rule', () => {
+  /** a 16x20 sheet area: all orange (224,152,40) */
+  const sheet = (): Uint8ClampedArray => { const d = new Uint8ClampedArray(16 * 20 * 4); for (let i = 0; i < d.length; i += 4) d.set([224, 152, 40, 255], i); return d; };
+  const rowOf = (d: Uint8ClampedArray, y: number): number[] => [...d.slice(y * 16 * 4, y * 16 * 4 + 3)];
+
+  it('keeps the head rows of a full body sprite whatever its position in the sheet, paints everything below', () => {
+    for (const top of [0, 2]) {
+      const d = sheet();
+      paintSheet(d, 16, [{ x: 0, y: top, w: 16, h: 18 }], 0);
+      expect(rowOf(d, top + 5)).toEqual([224, 152, 40]); // helmet row untouched
+      expect(rowOf(d, top + 6)[2]).toBeGreaterThan(rowOf(d, top + 6)[0]!); // chest blue
+    }
+  });
+
+  it('paints limb parts (knee pads, elbow pads, gloves) from their first row', () => {
+    const d = sheet();
+    paintSheet(d, 16, [{ x: 0, y: 0, w: 8, h: 15 }], 1);
+    expect(rowOf(d, 0)[0]).toBeGreaterThan(rowOf(d, 0)[2]!); // red from row 0
+    expect(hasHead({ x: 0, y: 0, w: 8, h: 15 })).toBe(false);
+    expect(hasHead({ x: 0, y: 0, w: 16, h: 32 })).toBe(true);
   });
 });
 

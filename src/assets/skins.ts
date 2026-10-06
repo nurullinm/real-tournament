@@ -31,3 +31,48 @@ export function tintVest(data: Uint8ClampedArray, width: number, height: number,
     }
   }
 }
+
+export interface Rect { x: number; y: number; w: number; h: number }
+
+/** Rows at the top of a head-bearing body sprite that belong to the head and its helmet. */
+export const HEAD_ROWS = 6;
+
+/** A sub-image that carries a head: full-height body sprites (the legs and the arm/gun parts are shorter). */
+export const hasHead = (r: Rect): boolean => r.h >= 17 && r.w >= 12 && r.w <= 18;
+
+/**
+ * Repaints one sheet in place: every vest-orange pixel (chest, elbow pads, knee pads, gloves) of every sprite in `rects`,
+ * except the head rows of body sprites. The head is decided per sprite, so it stays right in every run/jump frame.
+ */
+export function paintSheet(data: Uint8ClampedArray, sheetW: number, rects: Rect[], skin: number): void {
+  for (const r of rects) {
+    const top = r.y + (hasHead(r) ? HEAD_ROWS : 0);
+    for (let y = top; y < r.y + r.h; y++) {
+      const row = new Uint8ClampedArray(data.buffer, data.byteOffset + (y * sheetW + r.x) * 4, r.w * 4);
+      tintVest(row, r.w, 1, 0, skin);
+    }
+  }
+}
+
+/** skins[skin][sheet]: the fighter sheets (1 and 2) with a repainted vest; the other sheets are shared as they are. */
+export async function buildSkins(sheets: ImageBitmap[], rectsOf: (sheet: number) => Rect[]): Promise<ImageBitmap[][]> {
+  const out: ImageBitmap[][] = [];
+  for (let skin = 0; skin < VEST.length; skin++) {
+    const row: ImageBitmap[] = [];
+    for (let s = 0; s < sheets.length; s++) {
+      const rects = s === 1 || s === 2 ? rectsOf(s) : [];
+      const src = sheets[s]!;
+      if (rects.length === 0) { row.push(src); continue; }
+      const c = document.createElement('canvas');
+      c.width = src.width; c.height = src.height;
+      const x = c.getContext('2d')!;
+      x.drawImage(src, 0, 0);
+      const img = x.getImageData(0, 0, c.width, c.height);
+      paintSheet(img.data, c.width, rects, skin);
+      x.putImageData(img, 0, 0);
+      row.push(await createImageBitmap(c));
+    }
+    out.push(row);
+  }
+  return out;
+}
