@@ -182,3 +182,6 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .win-body.mp .row .value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .win-body.mp .kv span { flex: 0 0 72px; }
 .win-body.mp .kv { justify-content: flex-start; }
+/* settings: labels on the left, equal-width fields on the right (the input spans value + both arrows) */
+.row .input { flex: 0 0 232px; box-sizing: border-box; padding: 6px 8px; font-size: 14px; min-height: 34px; }
+.row .label { flex: 1 1 auto; min-width: 0; }

@@ -187,10 +187,10 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       title: t('menu.settings'),
       onBack: back,
       body: [
+        nickField(true),
         toggle(t('settings.sound'), () => settings.sound, (v) => { settings.sound = v; }),
         toggle(t('settings.violence'), () => settings.violence, (v) => { settings.violence = v; }),
         // the language change re-draws this window right away in the new language
-        nickField(),
         selector(
           t('settings.language'),
           () => langText(settings.language),
@@ -202,9 +202,11 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     open(menu);
   }
 
-  const nickField = (): HTMLElement => {
+  /** `inline`: label on the left and the field on the right, like every other settings row */
+  const nickField = (inline = false): HTMLElement => {
     const input = h('input', { class: 'input', type: 'text', maxlength: NAME_MAX, placeholder: t('mp.nick.ph'), 'aria-label': t('mp.nick'), autocomplete: 'off', value: settings.nickname }) as HTMLInputElement;
     input.addEventListener('input', () => { settings.nickname = cleanName(input.value, ''); save(); });
+    if (inline) return h('div', { class: 'row' }, h('div', { class: 'label', text: t('settings.nickname') }), input);
     return h('div', { class: 'field' }, h('div', { class: 'plabel', text: t('mp.nick') }), input);
   };
 
