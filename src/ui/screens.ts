@@ -60,6 +60,8 @@ interface WindowParts {
   bodyClass?: string;
   /** small muted text at the right of the header */
   note?: string;
+  /** a link-style button at the right of the header */
+  headLink?: HTMLElement;
 }
 
 export function createUi(root: HTMLElement, settings: GameSettings, handlers: UiHandlers): Ui {
@@ -101,6 +103,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     if (p.onBack) head.append(h('button', { class: 'back', 'aria-label': t('common.back'), onclick: p.onBack }));
     head.append(h('h2', { text: p.title }));
     if (p.note) head.append(h('div', { class: 'head-note', text: p.note }));
+    if (p.headLink) head.append(p.headLink);
     const el = h('div', { class: `win${p.small ? ' small' : ''}${p.tall ? ' tall' : ''}` }, head, h('div', { class: `win-body${p.bodyClass ? ` ${p.bodyClass}` : ''}` }, ...p.body));
     if (p.footer?.length) el.append(h('div', { class: 'win-foot' }, ...p.footer));
     return el;
@@ -312,6 +315,13 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     else void navigator.clipboard?.writeText(text).catch(() => {});
   }
 
+  /** The scoreboard as its own window (opened from the pause header), with a back arrow. */
+  function statsScreen(board: ScoreRow[], back: () => void): void {
+    clear(over);
+    over.append(win({ title: t('sb.title'), onBack: back, bodyClass: 'pause', body: [h('div', { class: 'psec' }, scoreTable(board))] }));
+    open(over);
+  }
+
   function helpScreen(back: () => void, host: HTMLElement): void {
     clear(host);
     const sections: [string, string][] = [
@@ -348,7 +358,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     showPause(canOrder, currentOrder, board, note): void {
       clear(over);
       const chip = (text: string, onclick: () => void, cls = ''): HTMLElement => h('button', { class: `btn chip ${cls}`, text, onclick });
-      const body: HTMLElement[] = board ? [h('div', { class: 'psec' }, scoreTable(board))] : [];
+      // in team matches the ally orders need the room: the scoreboard hides behind a link in the header
+      const folded = canOrder && !!board;
+      const body: HTMLElement[] = board && !folded ? [h('div', { class: 'psec' }, scoreTable(board))] : [];
       if (canOrder) {
         const row = h('div', { class: 'prow wrap' });
         for (let i = 0; i < 3; i++) row.append(chip(orderLabel(i), () => { handlers.allyOrder(i as AllyOrder); handlers.resume(); }, i === currentOrder ? 'hot' : ''));
@@ -366,6 +378,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         onBack: handlers.resume,
         bodyClass: 'pause',
         note,
+        headLink: folded ? h('button', { class: 'head-link', text: t('sb.title'), onclick: () => statsScreen(board!, () => this.showPause(canOrder, currentOrder, board, note)) }) : undefined,
         body,
         footer: [button(t('pause.end'), handlers.endGame, 'quiet')],
       }));

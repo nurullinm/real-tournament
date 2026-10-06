@@ -171,3 +171,4 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .win-body.mp.compact { gap: 8px; padding: 10px 14px; }
 .win-body.mp.compact .row { min-height: 36px; }
 .win-body.mp.compact .row .arrow { min-height: 34px; }
+.head-link { margin-left: auto; background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
