@@ -115,10 +115,5 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .win.small .scores { min-width: 0; margin: 2px 0; gap: 4px 18px; align-content: start; font-size: 14px; }
 .win.small .win-foot .btn { min-height: 34px; font-size: 13px; }
 
-/* disabled menu entry with a diagonal "coming soon" sticker */
-.soon { position: relative; display: flex; flex-direction: column; }
+/* disabled menu entry */
 .btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; background: #15184a; color: var(--muted); }
-.sticker { position: absolute; right: -6px; top: -8px; z-index: 1; transform: rotate(-12deg); pointer-events: none; padding: 3px 9px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); white-space: nowrap; }
-.soon .btn { padding-right: 56px; }
-.sticker { right: -4px; top: -9px; font-size: 9.5px; padding: 3px 8px; }
-.ui.menu .col .soon .btn { padding-right: 64px; }

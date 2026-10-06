@@ -6,7 +6,6 @@ export const en = {
   'menu.continue': 'Continue game',
   'menu.dm': 'Deathmatch',
   'menu.multiplayer': 'Multiplayer',
-  'badge.soon': 'Coming soon',
   'menu.ctf': 'Capture the flag',
   'menu.settings': 'Settings',
   'menu.help': 'Help',
