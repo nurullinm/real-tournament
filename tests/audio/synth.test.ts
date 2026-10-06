@@ -32,7 +32,7 @@ const peakOf = (x: Float32Array) => x.reduce((a, v) => Math.max(a, Math.abs(v)),
 const rms = (x: Float32Array) => Math.sqrt(x.reduce((a, v) => a + v * v, 0) / x.length);
 
 const DURATION: Record<EffectName, [number, number]> = {
-  laser: [0.15, 0.4], bazooka: [0.4, 0.9], explosion: [1.0, 2.2], saw: [0.4, 0.9], spinup: [0.4, 0.9], pickup: [0.25, 0.6],
+  laser: [0.15, 0.4], bazooka: [0.4, 0.9], explosion: [1.0, 2.2], saw: [0.4, 0.9], spinup: [1.2, 2.0], pickup: [0.25, 0.6],
   respawn: [0.6, 1.3], die: [0.35, 0.9], diehard: [0.5, 1.2], alarm: [0.9, 1.7], capture: [0.9, 1.8], order: [0.25, 0.6],
 };
 
@@ -85,6 +85,44 @@ describe('sound effects (44.1 kHz synth)', () => {
     m.forEach((v, i) => { if (i * hz > 300 && v > best) { best = v; bestHz = i * hz; } });
     expect([523.25, 783.99].some((f) => Math.abs(bestHz - f) < 25)).toBe(true); // C5/G5, not the pickup's A5/E6
     expect(bandShare(o, SR, 3000, 22000)).toBeLessThan(0.05); // soft: no bright top end
+  });
+
+  describe('chainsaw', () => {
+    const windowRms = (b: Float32Array, a: number, z: number) => rms(b.subarray(Math.round(a * SR), Math.round(z * SR)));
+    const cv = (b: Float32Array, a: number, z: number, win = 0.01) => {
+      const vals: number[] = [];
+      for (let t = a; t + win <= z; t += win) vals.push(windowRms(b, t, t + win));
+      const mean = vals.reduce((x, y) => x + y, 0) / vals.length;
+      return Math.sqrt(vals.reduce((x, y) => x + (y - mean) ** 2, 0) / vals.length) / (mean || 1);
+    };
+
+    it('the running saw is an engine: strong low body AND bright chain rattle', () => {
+      const b = get('saw');
+      expect(bandShare(b, SR, 80, 600)).toBeGreaterThan(0.25); // engine + exhaust
+      expect(bandShare(b, SR, 2500, 8000)).toBeGreaterThan(0.003); // chain / teeth
+    });
+
+    it('the engine fires in separate pulses (a rough rumble, not a smooth tone)', () => {
+      expect(cv(get('saw'), 0.1, 0.45, 0.004)).toBeGreaterThan(0.18);
+    });
+
+    it('revs up, bites into the cut and lets go (loudness follows the throttle)', () => {
+      const b = get('saw');
+      expect(windowRms(b, 0.2, 0.4)).toBeGreaterThan(windowRms(b, 0.0, 0.05)); // not a fade-in hiss: it builds
+      expect(windowRms(b, 0.2, 0.4)).toBeGreaterThan(windowRms(b, 0.6, 0.66) * 1.5); // dies away at the end
+    });
+
+    it('the start-up pulls the cord (bright ratchet), sputters unevenly, then catches and runs steadier and louder', () => {
+      const b = get('spinup');
+      expect(bandShare(b.subarray(0, Math.round(0.28 * SR)), SR, 1500, 9000)).toBeGreaterThan(0.2); // cord ratchet is bright
+      expect(windowRms(b, 0.95, 1.2)).toBeGreaterThan(windowRms(b, 0.05, 0.25) * 1.2); // the engine is louder than the pull
+      expect(cv(b, 0.36, 0.68, 0.01)).toBeGreaterThan(cv(b, 1.05, 1.35, 0.01) * 1.1); // sputtering is more irregular than the steady run
+      expect(b.length / SR).toBeGreaterThan(1.2);
+    });
+
+    it('start-up and cut are clearly different sounds and neither is a plain sawtooth', () => {
+      for (const n of ['saw', 'spinup'] as const) expect(bandShare(get(n), SR, 0, 60)).toBeLessThan(0.1);
+    });
   });
 
   it('every effect sounds different from every other', () => {

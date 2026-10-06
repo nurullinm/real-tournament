@@ -48,29 +48,121 @@ function explosion(): Float32Array {
   return finish(reverb(dry, 0.3, 0.8), 0.95, 160);
 }
 
-/** Melee saw: a growling, vibrating motor with grit. */
-function saw(): Float32Array {
-  const o = new Osc(); const o2 = new Osc(); const noise = createNoise(41); const bp = new Biquad('bp', 1100, 1.8); const grit = new Biquad('bp', 2800, 1.5);
-  return finish(render(0.6, (t) => {
-    const f = 78 + 7 * Math.sin(2 * Math.PI * 11 * t);
-    const motor = o.saw(f) * 0.7 + o2.square(f * 2.01) * 0.3;
-    const am = 1 + 0.55 * Math.sin(2 * Math.PI * 34 * t);
-    const body = bp.process(motor) * 2.2 + motor * 0.35 + grit.process(noise()) * 0.3;
-    const env = Math.min(1, t / 0.02) * Math.min(1, (0.6 - t) / 0.12);
-    return softClip(body * am * env * 1.6);
-  }), 0.8, 60);
+const smooth = (a: number, b: number, t: number): number => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+
+interface EngineSpec {
+  seconds: number;
+  /** crankshaft speed in rpm (a two-stroke fires once per revolution) */
+  rpm(t: number): number;
+  /** 0..1: how much of the engine is audible (cord pull and sputters gate it) */
+  gate(t: number): number;
+  /** 0..1 chain/clutch rattle level */
+  chain(t: number): number;
+  /** 0..1 firing irregularity */
+  rough(t: number): number;
+  /** probability that a cylinder cycle misfires (sputtering) */
+  misfire(t: number): number;
+  seed: number;
 }
 
-/** Switching to the saw: a rising whine. */
+/**
+ * Two-stroke chainsaw engine: one exhaust "chuff" per revolution with cycle-to-cycle jitter, body + muffler resonances,
+ * and the metallic rattle of the chain. Everything an engine does (idle, rev, load, sputter) is driven by the spec curves.
+ */
+function chainsawEngine(spec: EngineSpec): Float32Array {
+  const noise = createNoise(spec.seed); const jit = createNoise(spec.seed + 7); const chainN = createNoise(spec.seed + 13);
+  const hp = new Biquad('hp', 50, 0.7); const body = new Biquad('bp', 165, 1.1); const muff = new Biquad('bp', 780, 1.5); const buzz = new Biquad('bp', 1700, 1.2);
+  const chainBp = new Biquad('bp', 3400, 0.8); const chainHp = new Biquad('hp', 1500, 0.7);
+  let phase = 0; let amp = 1; let fScale = 1; let fired = true;
+  return render(spec.seconds, (t) => {
+    const f = (spec.rpm(t) / 60) * fScale;
+    phase += f / SR;
+    if (phase >= 1) {
+      phase -= 1;
+      const r = spec.rough(t);
+      fScale = 1 + 0.06 * r * jit();
+      fired = jit() * 0.5 + 0.5 >= spec.misfire(t);
+      amp = fired ? 0.72 + 0.28 * Math.abs(jit()) : 0.12;
+    }
+    // exhaust chuff: sharp rise, fast decay, a softer second bump (port timing)
+    const chuff = Math.pow(1 - phase, 5) * Math.min(1, phase / 0.012) + 0.28 * Math.pow(Math.max(0, 0.5 - Math.abs(phase - 0.38) * 3), 2) * 4;
+    const src = hp.process(chuff * amp);
+    const engine = body.process(src) * 2.6 + muff.process(src) * 1.5 + buzz.process(src) * 0.8 + src * 0.5;
+    // chain rattle: bright noise amplitude-modulated at the tooth rate
+    const tooth = 0.5 + 0.5 * Math.sin(2 * Math.PI * f * 4.3 * t);
+    const rattle = chainHp.process(chainBp.process(chainN())) * (0.35 + 0.65 * tooth) * spec.chain(t) * 1.9;
+    // a little blow-by hiss that follows the load
+    const hiss = noise() * 0.05 * spec.chain(t);
+    return softClip((engine * spec.gate(t) + rattle * spec.gate(t) + hiss) * 0.9);
+  });
+}
+
+/** Cord pull: the starter's ratcheting rip - a train of sharp ticks with a rasping body that speeds up. */
+function cordPull(seconds: number, seed: number): Float32Array {
+  const n = createNoise(seed); const bp = new Biquad('bp', 2600, 1.1); const tick = new Biquad('hp', 1800, 0.7); const low = new Biquad('lp', 400, 0.7);
+  const o = new Osc();
+  return render(seconds, (t) => {
+    const k = t / seconds;
+    const rate = 24 + 70 * k; // ratchet teeth per second, accelerating
+    const ph = (t * rate) % 1;
+    const click = tick.process(n()) * Math.exp(-ph * 22) * (0.5 + 0.5 * k);
+    const rasp = bp.process(n()) * (0.35 + 0.65 * Math.abs(Math.sin(Math.PI * t * rate))) * 0.55;
+    const rope = low.process(o.saw(95 + 140 * k)) * 0.22; // the pull itself (kept light: the ratchet is the bright part)
+    return (click * 1.3 + rasp + rope) * smooth(0, 0.03, t) * (1 - smooth(seconds - 0.05, seconds, t));
+  });
+}
+
+/** Melee saw cutting: full-throttle rev, bite under load (lower, rougher, crackling), then throttle off. */
+function saw(): Float32Array {
+  const n = createNoise(131); const crackle = new Biquad('bp', 1900, 1.8); const eng = chainsawEngine({
+    seconds: 0.66, seed: 5,
+    rpm: (t) => {
+      const rev = 2800 + 2100 * smooth(0, 0.1, t); // blip the throttle
+      const bite = 1 - 0.16 * smooth(0.12, 0.2, t) * (1 - smooth(0.46, 0.56, t)); // load drops the revs
+      const wobble = 1 + 0.025 * Math.sin(2 * Math.PI * 17 * t) * smooth(0.12, 0.2, t);
+      const off = 1 - 0.34 * smooth(0.5, 0.66, t); // throttle released
+      return rev * bite * wobble * off;
+    },
+    gate: (t) => smooth(0, 0.015, t) * (1 - smooth(0.58, 0.66, t)),
+    chain: (t) => 0.5 + 0.7 * smooth(0.1, 0.18, t) * (1 - smooth(0.5, 0.58, t)),
+    rough: (t) => 0.25 + 0.6 * smooth(0.12, 0.2, t) * (1 - smooth(0.5, 0.58, t)),
+    misfire: () => 0,
+  });
+  const out = eng;
+  // wood-chip crackle while the teeth are in the cut
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SR;
+    if (t > 0.13 && t < 0.52 && n() > 0.985) {
+      const burst = Math.min(out.length - i, 400);
+      for (let j = 0; j < burst; j++) out[i + j]! += crackle.process(n()) * Math.exp(-j / 70) * 0.22;
+    }
+  }
+  return finish(out, 0.85, 60);
+}
+
+/** Switching to the saw: pull the cord, sputter, catch with a rev, settle into a rough idle. */
 function spinup(): Float32Array {
-  const o = new Osc(); const noise = createNoise(53); const lp = new Biquad('lp', 2000, 0.9);
-  return finish(render(0.62, (t) => {
-    const k = Math.min(1, t / 0.5);
-    const f = 62 * Math.pow(7, k);
-    lp.set(600 + 3500 * k, 1.0);
-    const env = Math.min(1, t / 0.05) * Math.min(1, (0.62 - t) / 0.1) * (0.4 + 0.6 * k);
-    return softClip(lp.process(o.saw(f) * 0.8 + noise() * 0.12) * env * 1.5);
-  }), 0.72, 60);
+  const T = 1.5; const pullLen = 0.3;
+  const pull = cordPull(pullLen, 151);
+  const eng = chainsawEngine({
+    seconds: T, seed: 21,
+    rpm: (t) => {
+      if (t < 0.34) return 600 + 500 * smooth(0.3, 0.34, t);
+      if (t < 0.7) return 950 + 380 * Math.sin(8 * t) + 220 * smooth(0.55, 0.7, t); // coughing, hunting speed
+      const rev = 1300 + 2300 * smooth(0.7, 1.0, t); // catches and revs up
+      return t < 1.0 ? rev : 3600 - 950 * smooth(1.0, 1.3, t); // settles to idle
+    },
+    gate: (t) => smooth(0.29, 0.36, t) * (1 - smooth(1.4, 1.5, t)),
+    chain: (t) => 0.06 + 0.5 * smooth(0.68, 1.0, t) * (1 - 0.5 * smooth(1.0, 1.3, t)),
+    rough: (t) => (t < 0.7 ? 0.9 : 0.5 - 0.3 * smooth(1.0, 1.4, t)),
+    misfire: (t) => (t < 0.7 ? 0.5 : 0),
+  });
+  mixPull(eng, pull);
+  return finish(eng, 0.85, 80);
+}
+
+function mixPull(dst: Float32Array, pull: Float32Array): void {
+  for (let i = 0; i < pull.length && i < dst.length; i++) dst[i]! += pull[i]! * 0.55;
 }
 
 /** Pickup: a soft two-note chime. */
