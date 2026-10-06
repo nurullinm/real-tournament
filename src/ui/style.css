@@ -95,11 +95,12 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .win-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 12px; display: flex; flex-direction: column; gap: 3px; }
 .win-foot { flex: 0 0 auto; display: flex; gap: 8px; padding: 6px 12px 8px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .win-foot .btn { flex: 1 1 auto; min-height: 38px; padding-top: 6px; padding-bottom: 6px; }
-/* return arrow, drawn with CSS so it is perfectly centred */
-.back { position: relative; flex: 0 0 auto; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.08); color: var(--text); touch-action: manipulation; cursor: pointer; }
+/* return arrow: a rounded square like the other buttons, the arrow is a vector mask so it is perfectly centred */
+.back { position: relative; flex: 0 0 auto; width: 38px; height: 38px; padding: 0; border-radius: 10px; border: 2px solid var(--line); background: #15184a; color: var(--text); touch-action: manipulation; cursor: pointer; }
 .back:active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.back::before { content: ''; position: absolute; left: 50%; top: 50%; width: 13px; height: 2px; background: currentColor; border-radius: 1px; transform: translate(-50%, -50%); }
-.back::after { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 1px; transform: translate(-95%, -50%) rotate(45deg); }
+.back::before { content: ''; position: absolute; inset: 0; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 12H5'/%3E%3Cpath d='M11 6l-6 6 6 6'/%3E%3C/svg%3E") center / 22px 22px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 12H5'/%3E%3Cpath d='M11 6l-6 6 6 6'/%3E%3C/svg%3E") center / 22px 22px no-repeat; }
 .win .row { min-height: 34px; }
 .win .row .label { white-space: nowrap; font-size: 11px; letter-spacing: 0.04em; }
 .win .row .value { flex: 0 0 132px; padding: 6px 4px; font-size: 14px; white-space: nowrap; }
