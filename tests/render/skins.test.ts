@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOT_SKIN, hasHead, isVestOrange, paintSheet, tintVest } from '../../src/assets/skins';
+import { BOT_SKIN, headBox, isVestOrange, paintSheet, tintVest } from '../../src/assets/skins';
 import { createMatch, skinFor } from '../../src/engine/match';
 import { botHooks } from '../../src/bots';
 import { CTF_OPTS, DM_OPTS, REAL_ASSETS, REAL_MAPS } from '../engine/real';
@@ -73,26 +73,36 @@ describe('vest skins', () => {
   });
 });
 
-describe('per-sprite head rule', () => {
-  /** a 16x20 sheet area: all orange (224,152,40) */
-  const sheet = (): Uint8ClampedArray => { const d = new Uint8ClampedArray(16 * 20 * 4); for (let i = 0; i < d.length; i += 4) d.set([224, 152, 40, 255], i); return d; };
-  const rowOf = (d: Uint8ClampedArray, y: number): number[] => [...d.slice(y * 16 * 4, y * 16 * 4 + 3)];
+describe('per-sprite head box', () => {
+  /** a 24x24 sheet area of vest orange with a helmet (13 helmet-orange pixels) whose top-left is at (hx, hy) */
+  const sheet = (hx: number, hy: number): Uint8ClampedArray => {
+    const d = new Uint8ClampedArray(24 * 24 * 4);
+    for (let i = 0; i < d.length; i += 4) d.set([224, 152, 40, 255], i);
+    for (let k = 0; k < 13; k++) d.set([182, 123, 32, 255], (((hy + (k % 5)) * 24) + hx + (k % 3)) * 4);
+    return d;
+  };
+  const px = (d: Uint8ClampedArray, x: number, y: number): number[] => [...d.slice((y * 24 + x) * 4, (y * 24 + x) * 4 + 3)];
 
-  it('keeps the head rows of a full body sprite whatever its position in the sheet, paints everything below', () => {
-    for (const top of [0, 2]) {
-      const d = sheet();
-      paintSheet(d, 16, [{ x: 0, y: top, w: 16, h: 18 }], 0);
-      expect(rowOf(d, top + 5)).toEqual([224, 152, 40]); // helmet row untouched
-      expect(rowOf(d, top + 6)[2]).toBeGreaterThan(rowOf(d, top + 6)[0]!); // chest blue
-    }
+  it('finds the head wherever it is in the sprite (standing, or on the right of a diving pose)', () => {
+    expect(headBox(sheet(2, 1), 24, { x: 0, y: 0, w: 24, h: 24 })).toMatchObject({ x: 1, y: 0 });
+    const diving = headBox(sheet(18, 4), 24, { x: 0, y: 0, w: 24, h: 24 })!;
+    expect(diving.x).toBeGreaterThanOrEqual(17);
+    expect(diving.y).toBeGreaterThanOrEqual(3);
+    expect(headBox(sheet(2, 1).fill(0), 24, { x: 0, y: 0, w: 24, h: 24 })).toBeNull(); // no head, no box
   });
 
-  it('paints limb parts (knee pads, elbow pads, gloves) from their first row', () => {
-    const d = sheet();
-    paintSheet(d, 16, [{ x: 0, y: 0, w: 8, h: 15 }], 1);
-    expect(rowOf(d, 0)[0]).toBeGreaterThan(rowOf(d, 0)[2]!); // red from row 0
-    expect(hasHead({ x: 0, y: 0, w: 8, h: 15 })).toBe(false);
-    expect(hasHead({ x: 0, y: 0, w: 16, h: 32 })).toBe(true);
+  it('never repaints inside the head box, also for a head far from the top-left', () => {
+    const d = sheet(18, 4);
+    paintSheet(d, 24, [{ x: 0, y: 0, w: 24, h: 24 }], 0);
+    expect(px(d, 17, 3)).toEqual([224, 152, 40]); // face orange around the helmet pixels stays
+    expect(px(d, 3, 15)[2]).toBeGreaterThan(px(d, 3, 15)[0]!); // body far from the head is blue
+  });
+
+  it('paints limb parts without a head from their first row', () => {
+    const d = new Uint8ClampedArray(24 * 24 * 4);
+    for (let i = 0; i < d.length; i += 4) d.set([224, 152, 40, 255], i);
+    paintSheet(d, 24, [{ x: 0, y: 0, w: 8, h: 15 }], 1);
+    expect(px(d, 3, 0)[0]).toBeGreaterThan(px(d, 3, 0)[2]!); // red from row 0
   });
 });
 
