@@ -27,6 +27,10 @@ export interface UiHandlers {
 export interface LobbyView { code: string; players: LobbyPlayer[]; cfg: RoomConfig; slot: number; host: boolean }
 
 const SIDE_CSS = ['#3a5bff', '#e03030', '#25b25a', '#d9b800'];
+/** Online rooms offer three bot levels (engine skills 1, 2 and 3 of 0..4) */
+const BOT_LEVELS = [1, 2, 3] as const;
+const levelIndex = (skill: number): number => Math.max(0, Math.min(BOT_LEVELS.length - 1, BOT_LEVELS.findIndex((l) => l >= skill) === -1 ? BOT_LEVELS.length - 1 : BOT_LEVELS.findIndex((l) => l >= skill)));
+const levelName = (skill: number): string => t((['mp.level.0', 'mp.level.1', 'mp.level.2'] as const)[levelIndex(skill)]!);
 const LANG_PREFS: readonly LangPref[] = ['auto', 'en', 'ru'];
 
 export interface Ui {
@@ -293,7 +297,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       body.push(
         row(t('mp.l.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
         row(t('mp.l.bots'), String(cfg.bots), (d) => push({ bots: minBots + cycle(cfg.bots - minBots, d, maxBots - minBots + 1) })),
-        row(t('mp.l.skill'), skillName(cfg.skill), (d) => push({ skill: cycle(cfg.skill, d, 5) as RoomConfig['skill'] })),
+        row(t('mp.l.skill'), levelName(cfg.skill), (d) => push({ skill: BOT_LEVELS[cycle(levelIndex(cfg.skill), d, BOT_LEVELS.length)] as RoomConfig['skill'] })),
         row(t('mp.l.frags'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
       );
     } else {
@@ -301,7 +305,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       body.push(
         line(t('mp.l.map'), dmMapName(cfg.mapId)),
         line(t('mp.l.bots'), String(cfg.bots)),
-        line(t('mp.l.skill'), skillName(cfg.skill)),
+        line(t('mp.l.skill'), levelName(cfg.skill)),
         line(t('mp.l.frags'), none(cfg.fragLimit)),
         h('div', { class: 'help', text: t('mp.wait') }),
       );

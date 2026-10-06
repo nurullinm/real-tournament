@@ -155,4 +155,7 @@ export const ru: Record<Key, string> = {
   'mp.l.bots': 'Боты',
   'mp.l.skill': 'Уровень',
   'mp.l.frags': 'Фраги',
+  'mp.level.0': 'Лёгкие',
+  'mp.level.1': 'Средние',
+  'mp.level.2': 'Сложные',
 };

@@ -154,6 +154,9 @@ export const en = {
   'mp.l.bots': 'Bots',
   'mp.l.skill': 'Skill',
   'mp.l.frags': 'Frags',
+  'mp.level.0': 'Easy',
+  'mp.level.1': 'Medium',
+  'mp.level.2': 'Hard',
 } as const;
 
 export type Key = keyof typeof en;
