@@ -254,11 +254,12 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
         ctx.roundRect(b.cx - w / 2, b.cy - h / 2, w, h, b.r * 0.14);
         ctx.stroke();
         for (const dir of [-1, 1]) {
-          const y = b.cy + dir * h * 0.2;
+          // upper arrow points up, lower points down (apexes away from the centre, so it never reads as an hourglass)
+          const y = b.cy + dir * h * 0.22;
           ctx.beginPath();
-          ctx.moveTo(b.cx, y - dir * tri);
-          ctx.lineTo(b.cx - tri * 1.15, y + dir * tri * 0.65);
-          ctx.lineTo(b.cx + tri * 1.15, y + dir * tri * 0.65);
+          ctx.moveTo(b.cx, y + dir * tri);
+          ctx.lineTo(b.cx - tri * 1.15, y - dir * tri * 0.65);
+          ctx.lineTo(b.cx + tri * 1.15, y - dir * tri * 0.65);
           ctx.closePath();
           ctx.fill();
         }
