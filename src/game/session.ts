@@ -46,6 +46,9 @@ export class GameSession {
   private readonly anim = newWorldAnim();
   private prev: { x: number; y: number }[] = [];
   private prevProj = new Map<object, number>();
+  /** previous-tick y of lift cars (pobj index -> y), so riders and their car are interpolated together */
+  private prevCarY = new Map<number, number>();
+  private prevTramX = 0;
   private cam: Point = { x: 0, y: 0 };
   private prevCam: Point = { x: 0, y: 0 };
   private view = { w: 176, h: 192 };
@@ -63,6 +66,9 @@ export class GameSession {
     this.prev = this.match.fighters.map((f) => ({ x: f.x, y: f.y }));
     this.prevProj.clear();
     for (const p of this.match.projectiles) this.prevProj.set(p, p.x);
+    this.prevTramX = this.match.tram.x;
+    this.prevCarY.clear();
+    this.match.pobjs.forEach((p, i) => { if (p.type === 1 || p.type === 18 || p.type === 19) this.prevCarY.set(i, p.y); });
   }
 
   /** One 60 ms engine tick with the player's input. */
@@ -113,6 +119,15 @@ export class GameSession {
       { w: m.mapWidth, h: m.mapHeight },
     );
     beginWorld(ctx, cam, si.scale);
+    // lift cars move up to 14 px per tick: interpolate them exactly like their passengers
+    const carSaved: [number, number][] = [];
+    this.prevCarY.forEach((py, i) => {
+      const car = m.pobjs[i]!;
+      carSaved.push([i, car.y]);
+      if (Math.abs(car.y - py) <= 24) car.y = Math.round(py + (car.y - py) * alpha);
+    });
+    const tramSaved = m.tram.x;
+    if (Math.abs(m.tram.x - this.prevTramX) <= 24) m.tram.x = Math.round(this.prevTramX + (m.tram.x - this.prevTramX) * alpha);
     drawWorld(ctx, m, cam, this.view, this.deps.sprites, this.anim);
     this.effects.draw(ctx, this.deps.sprites);
     // interpolate movers for smooth 60 fps on a 16.7 Hz simulation (teleports and respawns are not smoothed)
@@ -128,8 +143,13 @@ export class GameSession {
       const px = this.prevProj.get(p);
       if (px !== undefined) p.x = Math.round(px + (p.x - px) * alpha);
     });
-    drawActors(ctx, m, this.deps.sprites, this.anim);
-    m.fighters.forEach((fi, i) => { fi.x = saved[i]!.x; fi.y = saved[i]!.y; });
+    try {
+      drawActors(ctx, m, this.deps.sprites, this.anim);
+    } finally {
+      m.fighters.forEach((fi, i) => { fi.x = saved[i]!.x; fi.y = saved[i]!.y; });
+      carSaved.forEach(([i, y]) => { m.pobjs[i]!.y = y; });
+      m.tram.x = tramSaved;
+    }
     m.projectiles.forEach((p, i) => { p.x = savedProj[i]!; });
     drawHud(ctx, m, 0, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
     if (f.showControls) drawControls(ctx, f.layout, f.held, f.dpr);
