@@ -43,31 +43,31 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
   text(ctx, `${WEAPON_NAMES[p.currentWeapon] ?? ''}  ${ammo}`, left, top + 46);
 
   const cx = vp.w / 2;
-  ctx.font = '700 20px ui-rounded, system-ui, sans-serif';
+  ctx.font = '700 13px ui-rounded, system-ui, sans-serif';
   if (m.gameMode === 0) {
     let best = -Infinity;
     for (let i = 1; i < m.numSides; i++) best = Math.max(best, m.score[i]!);
     ctx.fillStyle = SIDE_COLORS[m.sideColors[0] ?? 0]!;
-    ctx.fillRect(cx - 62, top, 56, 24);
+    ctx.fillRect(cx - 36, top, 34, 18);
     ctx.fillStyle = SIDE_COLORS[m.sideColors[1] ?? 1]!;
-    ctx.fillRect(cx + 6, top, 56, 24);
-    text(ctx, String(m.score[0]), cx - 34, top + 12, 'center');
-    text(ctx, String(best === -Infinity ? 0 : best), cx + 34, top + 12, 'center');
+    ctx.fillRect(cx + 2, top, 34, 18);
+    text(ctx, String(m.score[0]), cx - 19, top + 9, 'center');
+    text(ctx, String(best === -Infinity ? 0 : best), cx + 19, top + 9, 'center');
     if (m.fragLimit > 0) {
-      ctx.font = '600 12px ui-rounded, system-ui, sans-serif';
-      text(ctx, `FIRST TO ${m.fragLimit}`, cx, top + 36, 'center');
+      ctx.font = '600 10px ui-rounded, system-ui, sans-serif';
+      text(ctx, `FIRST TO ${m.fragLimit}`, cx, top + 26, 'center');
     }
   } else {
     for (let s = 0; s < 2; s++) {
       ctx.fillStyle = FLAG_COLORS[m.sideColors[s] ?? s]!;
-      const x = s === 0 ? cx - 62 : cx + 6;
-      ctx.fillRect(x, top, 56, 24);
-      text(ctx, String(m.score[s] ?? 0), x + 28, top + 12, 'center');
-      if (m.flagIsTaken[s] && (m.tick & 4) === 0) text(ctx, '⚑', x + 28, top + 40, 'center');
+      const x = s === 0 ? cx - 36 : cx + 2;
+      ctx.fillRect(x, top, 34, 18);
+      text(ctx, String(m.score[s] ?? 0), x + 17, top + 9, 'center');
+      if (m.flagIsTaken[s] && (m.tick & 4) === 0) text(ctx, '⚑', x + 17, top + 28, 'center');
     }
     if (m.fragLimit > 0) {
-      ctx.font = '600 12px ui-rounded, system-ui, sans-serif';
-      text(ctx, `FIRST TO ${m.fragLimit}`, cx, top + 62, 'center');
+      ctx.font = '600 10px ui-rounded, system-ui, sans-serif';
+      text(ctx, `FIRST TO ${m.fragLimit}`, cx, top + 42, 'center');
     }
   }
 }
