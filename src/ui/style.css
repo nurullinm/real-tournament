@@ -15,7 +15,7 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-
 #game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
 .ui { position: fixed; inset: 0; display: none; color: var(--text); font: 600 16px/1.3 ui-rounded, system-ui, -apple-system, sans-serif; padding: calc(var(--safe-t) + 12px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 12px) calc(var(--safe-l) + 16px); box-sizing: border-box; }
 .ui.open { display: flex; }
-.ui.menu { background: radial-gradient(ellipse at 20% 30%, #26206a 0%, var(--bg) 62%); align-items: center; gap: 24px; }
+.ui.menu { background: var(--bg) url('/art/cover.jpg') 38% 22% / cover no-repeat; align-items: center; justify-content: flex-end; gap: 24px; }
 .ui.over { background: rgba(5, 6, 20, 0.5); align-items: center; justify-content: center; }
 .hero { flex: 0 0 auto; height: min(100%, 416px); aspect-ratio: 176 / 208; background: url('/original/menu.png') center / contain no-repeat; image-rendering: pixelated; border-radius: 10px; }
 .col { flex: 1 1 auto; max-width: 420px; display: flex; flex-direction: column; gap: 8px; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 2px; }
@@ -78,3 +78,10 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 #pause { padding: 0; }
 #pause::before { content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 18px; transform: translate(-50%, -50%); background: linear-gradient(90deg, currentColor 0 5px, transparent 5px 11px, currentColor 11px 16px); border-radius: 1.5px; }
 #pause.resume::before { width: 17px; height: 19px; transform: translate(-42%, -50%); background: currentColor; border-radius: 0; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+
+/* cover art menu: translucent panel on the right so the artwork stays visible */
+.ui.menu .col { flex: 0 1 252px; max-width: 262px; padding: 10px; gap: 6px; background: rgba(8, 10, 32, 0.58); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 16px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.ui.menu .sheet { background: rgba(8, 10, 32, 0.78); }
+@media (max-height: 480px) { .ui.menu .col .btn { min-height: 38px; padding: 7px 10px; font-size: 14px; } }
+.ui.menu .col.wide { flex-basis: 352px; max-width: 372px; }
+.ui.menu .col.wide .row .value { flex-basis: 128px; font-size: 14px; }

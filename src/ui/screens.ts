@@ -78,7 +78,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
 
   function mainScreen(canContinue: boolean): void {
     clear(menu);
-    const col = h('div', { class: 'col' }, h('div', { class: 'logo' }));
+    const col = h('div', { class: 'col' });
     if (canContinue) col.append(button('Continue game', handlers.continueGame, 'primary'));
     col.append(
       button('Deathmatch', () => setupScreen('dm', canContinue), canContinue ? '' : 'primary'),
@@ -88,13 +88,13 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
       button('About', () => aboutScreen(canContinue)),
     );
     col.append(h('div', { class: 'build', text: `build ${__BUILD__}` }));
-    menu.append(h('div', { class: 'hero' }), col);
+    menu.append(col);
     open(menu);
   }
 
   function setupScreen(mode: 'dm' | 'ctf', canContinue: boolean): void {
     clear(menu);
-    const col = h('div', { class: 'col' }, h('h2', { text: mode === 'dm' ? 'Deathmatch' : 'Capture the flag' }));
+    const col = h('div', { class: 'col wide' }, h('h2', { text: mode === 'dm' ? 'Deathmatch' : 'Capture the flag' }));
     if (mode === 'dm') {
       const o = settings.dm;
       col.append(
@@ -117,13 +117,13 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
       );
     }
     col.append(h('div', { class: 'row actions' }, button('Start!', () => handlers.start(mode), 'primary'), button('Back', () => mainScreen(canContinue), 'quiet')));
-    menu.append(h('div', { class: 'hero' }), col);
+    menu.append(col);
     open(menu);
   }
 
   function settingsScreen(back: () => void): void {
     clear(menu);
-    menu.append(h('div', { class: 'hero' }), h('div', { class: 'col' }, h('h2', { text: 'Settings' }),
+    menu.append(h('div', { class: 'col wide' }, h('h2', { text: 'Settings' }),
       toggle('Sound', () => settings.sound, (v) => { settings.sound = v; }),
       toggle('Violence', () => settings.violence, (v) => { settings.violence = v; }),
       button('Back', back, 'primary')));
@@ -147,7 +147,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
 
   function aboutScreen(canContinue: boolean): void {
     clear(menu);
-    menu.append(h('div', { class: 'hero' }), h('div', { class: 'col' }, h('h2', { text: 'About' }),
+    menu.append(h('div', { class: 'col wide' }, h('h2', { text: 'About' }),
       h('div', { class: 'help', text: `Real Tournament (2012)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.\nBuild ${__BUILD__}` }),
       button('Back', () => mainScreen(canContinue), 'primary')));
     open(menu);
