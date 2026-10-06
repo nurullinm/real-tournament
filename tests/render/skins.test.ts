@@ -44,3 +44,19 @@ describe('vest skins', () => {
     expect(skinFor(dm, f)).toBe(BOT_SKIN); // a human who leaves turns into a bot
   });
 });
+
+describe('online vest colours', () => {
+  it('humans keep the colours they picked and bots take what is left', () => {
+    const m = createMatch({ ...DM_OPTS, bots: 3, humans: 2, humanColors: [2, 0] }, REAL_MAPS[0]!, 5, REAL_ASSETS, botHooks);
+    expect(m.fighters.slice(0, 2).map((f) => f.color)).toEqual([2, 0]);
+    expect(m.fighters.slice(0, 2).map((f) => f.skin)).toEqual([2, 0]);
+    expect(new Set(m.fighters.map((f) => f.color)).size).toBe(4); // all distinct
+  });
+
+  it('still repaints the jacket when the browser shifts pixel values slightly', () => {
+    const d = sprite();
+    for (let i = 0; i < d.length; i += 4) if (d[i] === 182) { d[i] = 177; d[i + 1] = 127; d[i + 2] = 36; } // colour-managed copy
+    paintVest(d, 8, [{ x: 0, y: 0, w: 8, h: 14 }], 1);
+    expect(px(d, 2, 12)[0]).toBeGreaterThan(px(d, 2, 12)[2]!); // turned red
+  });
+});

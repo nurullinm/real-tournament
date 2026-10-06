@@ -20,6 +20,7 @@ export interface UiHandlers {
   mpJoin(code: string): void;
   mpLeave(): void;
   mpConfig(cfg: RoomConfig): void;
+  mpColor(color: number): void;
   mpStart(): void;
 }
 
@@ -258,16 +259,25 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     const players = h('div', { class: 'pgrid' });
     for (const p of v.players) {
       players.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
-        h('span', { class: 'dot', style: `background:${SIDE_CSS[p.slot] ?? '#fff'}` }),
+        h('span', { class: 'dot', style: `background:${SIDE_CSS[p.color] ?? '#fff'}` }),
         h('span', { class: 'pname', text: p.name }),
         h('span', { class: 'ptag', text: p.host ? '★' : '' })));
+    }
+    const mine = v.players.find((p) => p.slot === v.slot)?.color ?? 0;
+    const swatches = h('div', { class: 'swatches' });
+    for (let c = 0; c < SIDE_CSS.length; c++) {
+      const takenBy = v.players.some((p) => p.slot !== v.slot && p.color === c);
+      swatches.append(h('button', {
+        class: `swatch${c === mine ? ' on' : ''}`, style: `background:${SIDE_CSS[c]}`, 'aria-label': colorName(c),
+        disabled: takenBy || undefined, onclick: () => handlers.mpColor(c),
+      }));
     }
     const cfg = v.cfg;
     const none = (n: number): string => (n === 0 ? t('common.none') : String(n));
     const body: HTMLElement[] = [
       h('div', { class: 'coderow' }, h('div', { class: 'code-big', text: v.code }), button(t('mp.share'), () => shareRoom(v.code), 'chip')),
-      h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }),
       players,
+      h('div', { class: 'colorrow' }, h('div', { class: 'plabel', text: t('mp.vest') }), swatches),
     ];
     if (v.host) {
       const push = (patch: Partial<RoomConfig>): void => { handlers.mpConfig({ ...cfg, ...patch }); };
@@ -279,23 +289,24 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       const minBots = v.players.length <= 1 ? 1 : 0;
       const maxBots = MAX_PLAYERS - v.players.length;
       body.push(
-        row(t('setup.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
-        row(t('mp.botcount'), String(cfg.bots), (d) => push({ bots: minBots + cycle(cfg.bots - minBots, d, maxBots - minBots + 1) })),
-        row(t('mp.botskill'), skillName(cfg.skill), (d) => push({ skill: cycle(cfg.skill, d, 5) as RoomConfig['skill'] })),
-        row(t('setup.fragLimit'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
+        row(t('mp.l.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
+        row(t('mp.l.bots'), String(cfg.bots), (d) => push({ bots: minBots + cycle(cfg.bots - minBots, d, maxBots - minBots + 1) })),
+        row(t('mp.l.skill'), skillName(cfg.skill), (d) => push({ skill: cycle(cfg.skill, d, 5) as RoomConfig['skill'] })),
+        row(t('mp.l.frags'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
       );
     } else {
       const line = (k: string, val: string): HTMLElement => h('div', { class: 'kv' }, h('span', { text: k }), h('b', { text: val }));
       body.push(
-        line(t('setup.map'), dmMapName(cfg.mapId)),
-        line(t('mp.botcount'), String(cfg.bots)),
-        line(t('mp.botskill'), skillName(cfg.skill)),
-        line(t('setup.fragLimit'), none(cfg.fragLimit)),
+        line(t('mp.l.map'), dmMapName(cfg.mapId)),
+        line(t('mp.l.bots'), String(cfg.bots)),
+        line(t('mp.l.skill'), skillName(cfg.skill)),
+        line(t('mp.l.frags'), none(cfg.fragLimit)),
         h('div', { class: 'help', text: t('mp.wait') }),
       );
     }
     menu.append(win({
       title: t('mp.title'),
+      note: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}`,
       onBack: handlers.mpLeave,
       bodyClass: 'mp compact',
       tall: true,

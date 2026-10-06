@@ -149,6 +149,11 @@ export const en = {
   'mp.or': 'or join with a code',
   'mp.nickhint': 'Shown to other players',
   'mp.botcount': 'Bots',
+  'mp.vest': 'Vest colour',
+  'mp.l.map': 'Map',
+  'mp.l.bots': 'Bots',
+  'mp.l.skill': 'Skill',
+  'mp.l.frags': 'Frags',
 } as const;
 
 export type Key = keyof typeof en;

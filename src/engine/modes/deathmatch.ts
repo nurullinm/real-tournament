@@ -25,11 +25,18 @@ export function genNonRepeating(m: Match, n: number, count: number, first: numbe
   return out;
 }
 
+/** Online: the humans keep the colours they picked, bots get whatever is left (deterministic, no RNG). */
+function assignColors(humanColors: number[], n: number): number[] {
+  const out = humanColors.slice(0, n);
+  for (let c = 0; out.length < n && c < 4; c++) if (!out.includes(c)) out.push(c);
+  return out;
+}
+
 export function setupDeathmatch(m: Match): void {
   const n = m.opts.bots + 1;
   m.numFighters = m.numSides = n;
   const starts = genNonRepeating(m, m.map.dmBlue.length, n, -1);
-  const colors = genNonRepeating(m, 4, n, m.opts.playerColor);
+  const colors = m.opts.humanColors ? assignColors(m.opts.humanColors, n) : genNonRepeating(m, 4, n, m.opts.playerColor);
   for (let i = 0; i < n; i++) {
     const f = m.fighters[i]!;
     f.starts = m.map.dmBlue;

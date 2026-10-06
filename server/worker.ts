@@ -8,7 +8,7 @@ interface Env { ROOMS: DurableObjectNamespace; BOT_TOKEN?: string; ALLOWED_ORIGI
 
 const idle = (): WireInput => ({ c: 0, ws: -1, wd: 0 });
 
-interface Player { slot: number; name: string; ws: WebSocket; host: boolean; held: number; ws_: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; alive: boolean }
+interface Player { slot: number; name: string; color: number; ws: WebSocket; host: boolean; held: number; ws_: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; alive: boolean }
 
 export class Room {
   private players = new Map<number, Player>();
@@ -36,7 +36,7 @@ export class Room {
   private lobby(): void {
     this.broadcast({
       t: 'lobby', cfg: this.cfg,
-      players: [...this.players.values()].filter((p) => p.alive).map((p) => ({ slot: p.slot, name: p.name, host: p.host })),
+      players: [...this.players.values()].filter((p) => p.alive).map((p) => ({ slot: p.slot, name: p.name, host: p.host, color: p.color })),
     });
   }
 
@@ -60,7 +60,9 @@ export class Room {
         }
         if (this.started) return this.reject(ws, 'started');
         const slot = [...Array(MAX_PLAYERS).keys()].find((s) => !this.players.get(s)?.alive)!;
-        me = { slot, name, ws, host: live.length === 0, held: 0, ws_: -1, wd: 0, alive: true };
+        const taken = new Set(live.map((p) => p.color));
+        const color = [0, 1, 2, 3].find((c) => !taken.has(c)) ?? 0;
+        me = { slot, name, color, ws, host: live.length === 0, held: 0, ws_: -1, wd: 0, alive: true };
         this.players.set(slot, me);
         this.cfg = clampConfig(this.cfg, live.length + 1);
         this.send(ws, { t: 'welcome', slot, code: '' });
@@ -71,6 +73,13 @@ export class Room {
       switch (msg.t) {
         case 'name':
           if (!this.started) { me.name = cleanName(msg.name, me.name); this.lobby(); }
+          break;
+        case 'color':
+          if (!this.started && Number.isInteger(msg.color) && msg.color >= 0 && msg.color <= 3
+            && ![...this.players.values()].some((p) => p.alive && p !== me && p.color === msg.color)) {
+            me.color = msg.color;
+            this.lobby();
+          }
           break;
         case 'cfg':
           if (me.host && !this.started) {
@@ -114,7 +123,8 @@ export class Room {
     this.tick = 0;
     const seed = (crypto.getRandomValues(new Uint32Array(1))[0]! >>> 0) || 1;
     const names = live.map((p) => p.name);
-    for (const p of live) this.send(p.ws, { t: 'start', seed, cfg: this.cfg, humans: this.humans, names, slot: p.slot });
+    const colors = live.map((p) => p.color);
+    for (const p of live) this.send(p.ws, { t: 'start', seed, cfg: this.cfg, humans: this.humans, names, colors, slot: p.slot });
     this.timer = setInterval(() => this.step(), NET_TICK_MS);
   }
 

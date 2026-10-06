@@ -146,6 +146,8 @@ export interface MatchOptions {
   playerColor: number;
   /** number of human-controlled fighters (slots 0..humans-1); default 1. DM: bots + 1 is the total fighter count */
   humans?: number;
+  /** vest colour per human slot (online); bots take the remaining colours */
+  humanColors?: number[];
 }
 
 export interface EngineAssets {

@@ -167,8 +167,18 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .sb .n { text-align: center; font-variant-numeric: tabular-nums; }
 .sb-c.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-c.you { color: var(--accent); font-weight: 700; }
-.win.tall { height: min(404px, calc(100vh - 16px)); }
-.win-body.mp.compact { gap: 8px; padding: 10px 14px; }
-.win-body.mp.compact .row { min-height: 36px; }
+.win.tall { height: min(420px, calc(100vh - 16px)); }
+.win-body.mp.compact { gap: 7px; padding: 8px 14px; }
+.win-body.mp.compact .row { min-height: 34px; }
 .win-body.mp.compact .row .arrow { min-height: 34px; }
 .head-link { margin-left: auto; background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.colorrow { display: flex; align-items: center; gap: 12px; }
+.swatches { display: flex; gap: 10px; margin-left: auto; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); padding: 0; cursor: pointer; }
+.swatch.on { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+.swatch:disabled { opacity: 0.25; cursor: not-allowed; }
+/* lobby settings: short labels in a fixed column so every selector lines up */
+.win-body.mp .row .label { flex: 0 0 72px; }
+.win-body.mp .row .value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-body.mp .kv span { flex: 0 0 72px; }
+.win-body.mp .kv { justify-content: flex-start; }

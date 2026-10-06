@@ -150,4 +150,9 @@ export const ru: Record<Key, string> = {
   'mp.or': 'или войдите по коду',
   'mp.nickhint': 'Увидят другие игроки',
   'mp.botcount': 'Ботов',
+  'mp.vest': 'Цвет жилета',
+  'mp.l.map': 'Карта',
+  'mp.l.bots': 'Боты',
+  'mp.l.skill': 'Уровень',
+  'mp.l.frags': 'Фраги',
 };

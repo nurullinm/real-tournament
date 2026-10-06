@@ -19,7 +19,7 @@ export interface RoomConfig {
 
 export const DEFAULT_CONFIG: RoomConfig = { mapId: 0, bots: 3, fragLimit: 10, skill: 2, violence: true, noMedikits: false };
 
-export interface LobbyPlayer { slot: number; name: string; host: boolean }
+export interface LobbyPlayer { slot: number; name: string; host: boolean; /** vest colour 0 blue, 1 red, 2 green, 3 yellow */ color: number }
 
 /** One player's input for a tick: held-button bitmask (engine CMD_* bits) plus one-shot weapon pulses. */
 export interface WireInput { c: number; ws: -1 | 0 | 1 | 2; wd: -1 | 0 | 1 }
@@ -27,6 +27,7 @@ export interface WireInput { c: number; ws: -1 | 0 | 1 | 2; wd: -1 | 0 | 1 }
 export type ClientMsg =
   | { t: 'hello'; name: string; initData?: string; /** true when this client made up the code: the room must be new */ create: boolean }
   | { t: 'name'; name: string }
+  | { t: 'color'; color: number }
   | { t: 'cfg'; cfg: RoomConfig }
   | { t: 'start' }
   | { t: 'in'; c: number; ws: -1 | 0 | 1 | 2; wd: -1 | 0 | 1 }
@@ -35,7 +36,7 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; slot: number; code: string }
   | { t: 'lobby'; players: LobbyPlayer[]; cfg: RoomConfig }
-  | { t: 'start'; seed: number; cfg: RoomConfig; humans: number; names: string[]; slot: number }
+  | { t: 'start'; seed: number; cfg: RoomConfig; humans: number; names: string[]; colors: number[]; slot: number }
   /** server tick n: input of every human slot, plus slots that dropped out at this tick (bots take over) */
   | { t: 'tick'; n: number; i: WireInput[]; d?: number[] }
   | { t: 'error'; reason: 'full' | 'started' | 'auth' | 'bad' | 'notfound' };

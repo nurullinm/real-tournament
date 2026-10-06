@@ -158,10 +158,10 @@ async function boot(): Promise<void> {
       },
     });
   }
-  function startOnline(m: { seed: number; cfg: RoomConfig; humans: number; names: string[]; slot: number }): void {
+  function startOnline(m: { seed: number; cfg: RoomConfig; humans: number; names: string[]; colors: number[]; slot: number }): void {
     const opts = {
       mapId: m.cfg.mapId, mode: 'dm' as const, skill: m.cfg.skill, bots: m.humans + m.cfg.bots - 1, fragLimit: m.cfg.fragLimit,
-      noMedikits: m.cfg.noMedikits, violence: settings.violence, team: false, playerColor: 0, humans: m.humans,
+      noMedikits: m.cfg.noMedikits, violence: settings.violence, team: false, playerColor: m.colors[0] ?? 0, humans: m.humans, humanColors: m.colors,
     };
     mySlot = m.slot;
     lockstep = new Lockstep(m.humans);
@@ -300,6 +300,7 @@ async function boot(): Promise<void> {
     mpJoin: (code) => openRoom(code, false),
     mpLeave: () => { leaveRoom(); ui.showMultiplayer(); },
     mpConfig: (cfg) => net?.send({ t: 'cfg', cfg }),
+    mpColor: (color) => net?.send({ t: 'color', color }),
     mpStart: () => net?.send({ t: 'start' }),
   });
 
