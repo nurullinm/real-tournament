@@ -39,6 +39,17 @@ export interface Ui {
   setRotateOverlay(on: boolean): void;
 }
 
+/** Every section window has the same size and layout: header (back arrow + title), scrolling body, optional footer action. */
+interface WindowParts {
+  title: string;
+  /** shows the return arrow in the header */
+  onBack?: () => void;
+  body: HTMLElement[];
+  footer?: HTMLElement[];
+  /** result card: smaller, no fixed height */
+  small?: boolean;
+}
+
 export function createUi(root: HTMLElement, settings: GameSettings, help: HelpText, handlers: UiHandlers): Ui {
   const menu = h('div', { class: 'ui menu' });
   const over = h('div', { class: 'ui over' });
@@ -62,6 +73,15 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
   };
 
   const save = (): void => handlers.settingsChanged(settings);
+
+  function win(p: WindowParts): HTMLElement {
+    const head = h('div', { class: 'win-head' });
+    if (p.onBack) head.append(h('button', { class: 'back', 'aria-label': 'Back', onclick: p.onBack }));
+    head.append(h('h2', { text: p.title }));
+    const el = h('div', { class: `win${p.small ? ' small' : ''}` }, head, h('div', { class: 'win-body' }, ...p.body));
+    if (p.footer?.length) el.append(h('div', { class: 'win-foot' }, ...p.footer));
+    return el;
+  }
 
   function selector(label: string, value: () => string, change: (dir: -1 | 1) => void): HTMLElement {
     const val = h('div', { class: 'value', text: value(), role: 'button' });
@@ -94,10 +114,10 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
 
   function setupScreen(mode: 'dm' | 'ctf', canContinue: boolean): void {
     clear(menu);
-    const col = h('div', { class: 'col wide' }, h('h2', { text: mode === 'dm' ? 'Deathmatch' : 'Capture the flag' }));
+    const body: HTMLElement[] = [];
     if (mode === 'dm') {
       const o = settings.dm;
-      col.append(
+      body.push(
         selector('Map', () => DM_MAP_NAMES[o.map]!, (d) => { o.map = cycle(o.map, d, DM_MAP_NAMES.length); }),
         selector('Skill', () => SKILL_NAMES[o.skill]!, (d) => { o.skill = cycle(o.skill, d, 5); }),
         selector('Bots', () => BOT_NAMES[o.bots]!, (d) => { o.bots = cycle(o.bots, d, 4); }),
@@ -107,7 +127,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
       );
     } else {
       const o = settings.ctf;
-      col.append(
+      body.push(
         selector('Map', () => CTF_MAP_NAMES[o.map]!, (d) => { o.map = cycle(o.map, d, CTF_MAP_NAMES.length); }),
         selector('Skill', () => SKILL_NAMES[o.skill]!, (d) => { o.skill = cycle(o.skill, d, 5); }),
         selector('Teams', () => (o.team ? '2 vs 2' : 'Solo'), () => { o.team = !o.team; }),
@@ -116,40 +136,50 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
         toggle('No medikits', () => o.noMedikits, (v) => { o.noMedikits = v; }),
       );
     }
-    col.append(h('div', { class: 'row actions' }, button('Start!', () => handlers.start(mode), 'primary'), button('Back', () => mainScreen(canContinue), 'quiet')));
-    menu.append(col);
+    menu.append(win({
+      title: mode === 'dm' ? 'Deathmatch' : 'Capture the flag',
+      onBack: () => mainScreen(canContinue),
+      body,
+      footer: [button('Start!', () => handlers.start(mode), 'primary')],
+    }));
     open(menu);
   }
 
   function settingsScreen(back: () => void): void {
     clear(menu);
-    menu.append(h('div', { class: 'col wide' }, h('h2', { text: 'Settings' }),
-      toggle('Sound', () => settings.sound, (v) => { settings.sound = v; }),
-      toggle('Violence', () => settings.violence, (v) => { settings.violence = v; }),
-      button('Back', back, 'primary')));
+    menu.append(win({
+      title: 'Settings',
+      onBack: back,
+      body: [
+        toggle('Sound', () => settings.sound, (v) => { settings.sound = v; }),
+        toggle('Violence', () => settings.violence, (v) => { settings.violence = v; }),
+      ],
+    }));
     open(menu);
   }
 
   function helpScreen(back: () => void, host: HTMLElement): void {
     clear(host);
     const sections: [string, string][] = [['Controls', help.controls], ['Pickups', help.pickups], ['Deathmatch', help.deathmatch], ['Capture the flag', help.ctf]];
-    const body = h('div', { class: 'help' });
+    const text = h('div', { class: 'help' });
     const tabs = h('div', { class: 'tabs' });
     const show = (i: number): void => {
-      body.textContent = sections[i]![1].replace(/\r/g, '').trim();
+      text.textContent = sections[i]![1].replace(/\r/g, '').trim();
       [...tabs.children].forEach((c, j) => c.classList.toggle('hot', i === j));
     };
-    sections.forEach(([name], i) => tabs.append(button(name, () => show(i))));
-    host.append(h('div', { class: 'sheet' }, h('h2', { text: 'Help' }), tabs, body, button('Back', back, 'primary')));
+    sections.forEach(([name], i) => tabs.append(button(name, () => show(i), 'chip')));
+    host.append(win({ title: 'Help', onBack: back, body: [tabs, text] }));
     show(0);
     open(host);
   }
 
   function aboutScreen(canContinue: boolean): void {
     clear(menu);
-    menu.append(h('div', { class: 'col wide' }, h('h2', { text: 'About' }),
-      h('div', { class: 'help', text: `Real Tournament (2012)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.\nBuild ${__BUILD__}` }),
-      button('Back', () => mainScreen(canContinue), 'primary')));
+    menu.append(win({
+      title: 'About',
+      onBack: () => mainScreen(canContinue),
+      body: [h('div', { class: 'help', text: `Real Tournament (2012)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.\nBuild ${__BUILD__}` })],
+    }));
     open(menu);
   }
 
@@ -158,19 +188,24 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
     showPause(canOrder, currentOrder): void {
       clear(over);
       const chip = (text: string, onclick: () => void, cls = ''): HTMLElement => h('button', { class: `btn chip ${cls}`, text, onclick });
-      const sheet = h('div', { class: 'sheet pause' }, h('h2', { text: 'Game paused' }));
+      const body: HTMLElement[] = [];
       if (canOrder) {
-        const row = h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Ally' }));
+        const row = h('div', { class: 'prow wrap' });
         ORDER_LABELS.forEach((label, i) => row.append(chip(label, () => { handlers.allyOrder(i as AllyOrder); handlers.resume(); }, i === currentOrder ? 'hot' : '')));
-        sheet.append(row);
+        body.push(h('div', { class: 'plabel', text: 'Ally' }), row);
       }
       const sound = chip(`Sound: ${settings.sound ? 'On' : 'Off'}`, () => {
         settings.sound = !settings.sound;
         sound.textContent = `Sound: ${settings.sound ? 'On' : 'Off'}`;
         save();
       });
-      sheet.append(h('div', { class: 'prow' }, sound, chip('Help', () => helpScreen(() => this.showPause(canOrder, currentOrder), over)), chip('End game', handlers.endGame, 'quiet')));
-      over.append(sheet);
+      body.push(h('div', { class: 'prow' }, sound, chip('Help', () => helpScreen(() => this.showPause(canOrder, currentOrder), over))));
+      over.append(win({
+        title: 'Game paused',
+        onBack: handlers.resume,
+        body,
+        footer: [button('End game', handlers.endGame, 'quiet')],
+      }));
       open(over);
       setPausedUi(true);
     },
@@ -183,14 +218,14 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
       rows.forEach((r, i) => {
         const name = m.gameMode === 1 ? (r.color === 0 ? 'Blue team' : 'Red team') : COLOR_NAMES[r.color]!;
         const you = r.side === 0 ? ' (you)' : '';
-        const cls = i === 0 ? 'win' : '';
+        const cls = i === 0 ? 'first' : '';
         grid.append(
           h('div', { class: cls }, h('span', { class: 'dot', style: `background:${SIDE_CSS[r.color] ?? '#fff'}` }), h('span', { text: `${name}${you}` })),
           h('div', { class: cls, text: String(r.score) }),
         );
       });
       setPausedUi(false);
-      over.append(h('div', { class: 'sheet compact' }, h('h2', { text: 'Match result' }), grid, button('Menu', handlers.endGame, 'primary')));
+      over.append(win({ title: 'Match result', body: [grid], footer: [button('Menu', handlers.endGame, 'primary')], small: true }));
       open(over);
       over.classList.add('plain');
     },

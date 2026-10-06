@@ -34,7 +34,7 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .help { color: var(--text); font-weight: 500; white-space: pre-wrap; max-width: 520px; max-height: 200px; overflow-y: auto; margin: 6px 0; }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .scores { display: grid; grid-template-columns: 1fr auto; gap: 6px 24px; margin: 10px 0 14px; min-width: 260px; }
-.scores .win { color: var(--accent); }
+.scores .first { color: var(--accent); }
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 #pause { position: fixed; top: calc(var(--safe-t) + 10px); right: calc(var(--safe-r) + 14px); z-index: 5; display: none; width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(255,255,255,.5); background: rgba(0,0,0,.35); color: #fff; font-size: 18px; touch-action: manipulation; }
 #pause.on { display: block; }
@@ -85,3 +85,31 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 @media (max-height: 480px) { .ui.menu .col .btn { min-height: 38px; padding: 7px 10px; font-size: 14px; } }
 .ui.menu .col.wide { flex-basis: 352px; max-width: 372px; }
 .ui.menu .col.wide .row .value { flex-basis: 128px; font-size: 14px; }
+
+/* ---- unified section windows (setup, settings, help, about, pause, result) ---- */
+.win { display: flex; flex-direction: column; flex: 0 0 auto; width: min(372px, calc(100vw - 24px)); height: min(348px, calc(100vh - 16px)); box-sizing: border-box; background: rgba(8, 10, 32, 0.8); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 16px; overflow: hidden; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.win.small { height: auto; width: min(260px, calc(100vw - 24px)); }
+.win-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 6px 12px; min-height: 40px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.win-head h2 { margin: 0; font-size: 14px; letter-spacing: 0.1em; }
+.win.small .win-head h2 { font-size: 13px; }
+.win-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 12px; display: flex; flex-direction: column; gap: 3px; }
+.win-foot { flex: 0 0 auto; display: flex; gap: 8px; padding: 6px 12px 8px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.win-foot .btn { flex: 1 1 auto; min-height: 38px; padding-top: 6px; padding-bottom: 6px; }
+/* return arrow, drawn with CSS so it is perfectly centred */
+.back { position: relative; flex: 0 0 auto; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.08); color: var(--text); touch-action: manipulation; cursor: pointer; }
+.back:active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.back::before { content: ''; position: absolute; left: 50%; top: 50%; width: 13px; height: 2px; background: currentColor; border-radius: 1px; transform: translate(-50%, -50%); }
+.back::after { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 1px; transform: translate(-95%, -50%) rotate(45deg); }
+.win .row { min-height: 34px; }
+.win .row .label { white-space: nowrap; font-size: 11px; letter-spacing: 0.04em; }
+.win .row .value { flex: 0 0 132px; padding: 6px 4px; font-size: 14px; white-space: nowrap; }
+.win .row .arrow { flex: 0 0 36px; min-height: 34px; }
+.win .tabs { flex-wrap: wrap; gap: 5px; }
+.win .tabs .chip { flex: 1 1 auto; }
+.win .help { max-height: none; margin: 4px 0 0; font-size: 14px; }
+.win .plabel { margin: 0 0 -2px; }
+.prow.wrap { flex-wrap: wrap; }
+.ui.over .win { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45); }
+.win.small .win-body { flex: 0 0 auto; overflow: visible; }
+.win.small .scores { min-width: 0; margin: 2px 0; gap: 4px 18px; align-content: start; font-size: 14px; }
+.win.small .win-foot .btn { min-height: 34px; font-size: 13px; }
