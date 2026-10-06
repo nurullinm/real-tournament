@@ -6,6 +6,8 @@ export const ru: Record<Key, string> = {
 
   'menu.continue': 'Продолжить игру',
   'menu.dm': 'Дэтматч',
+  'menu.multiplayer': 'Мультиплеер',
+  'badge.soon': 'Скоро',
   'menu.ctf': 'Захват флага',
   'menu.settings': 'Настройки',
   'menu.help': 'Помощь',
