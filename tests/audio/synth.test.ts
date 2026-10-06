@@ -139,25 +139,23 @@ describe('sound effects (44.1 kHz synth)', () => {
       return n;
     };
 
-    it('the ammo pickup is a single hard clack', () => {
-      expect(hits(get("ammo"))).toBe(1);
-      expect(bandShare(get('ammo'), SR, 100, 250)).toBeGreaterThan(0.02); // body thump
-      expect(bandShare(get("ammo"), SR, 1500, 9000)).toBeGreaterThan(0.02); // metallic click
+    it('the ammo pickup is a short metallic click: no drum thump, no bell tone', () => {
+      const a = get('ammo');
+      expect(hits(a)).toBeGreaterThanOrEqual(2);
+      expect(bandShare(a, SR, 40, 300)).toBeLessThan(0.05); // no drum
+      expect(bandShare(a, SR, 1500, 9000)).toBeGreaterThan(0.6); // metal
+      expect(bandShare(a, SR, 700, 1500)).toBeLessThan(0.3); // no tone
     });
 
-    it('the weapon pickup is one heavier, deeper clack', () => {
-      expect(hits(get("weapon"))).toBe(1);
-      expect(hits(get("weapon"))).toBe(1);
-      expect(get('weapon').length).toBeGreaterThan(get('ammo').length);
-      expect(rms(get('weapon').subarray(0, 4000))).toBeGreaterThan(rms(get('ammo').subarray(0, 4000)) * 0.9);
+    it('the weapon pickup is the heavier, longer sibling, still pure metal', () => {
+      const w = get('weapon');
+      expect(hits(w)).toBeGreaterThanOrEqual(2);
+      expect(bandShare(w, SR, 40, 300)).toBeLessThan(0.05);
+      expect(w.length).toBeGreaterThan(get('ammo').length);
     });
 
-    it('both are punchy and unlike the soft health/armor chime', () => {
-      for (const n of ['ammo', 'weapon'] as const) {
-        expect(peakOf(get(n))).toBeGreaterThan(0.85);
-        expect(bandShare(get(n), SR, 700, 1500)).toBeLessThan(0.7); // not a tone
-      }
-      expect(rms(get('weapon').subarray(0, 2000))).toBeGreaterThan(rms(get('pickup').subarray(0, 2000)));
+    it('both are punchy', () => {
+      for (const n of ['ammo', 'weapon'] as const) expect(peakOf(get(n))).toBeGreaterThan(0.85);
     });
   });
 

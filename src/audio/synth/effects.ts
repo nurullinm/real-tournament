@@ -286,24 +286,28 @@ function strike(t: number, at: number, noise: () => number, hpf: Biquad, rings: 
   return s;
 }
 
-/** Ammo pickup: one hard metallic clack of a magazine seating - a single hit, no tail. */
-function ammo(): Float32Array {
-  const noise = createNoise(171); const hpf = new Biquad('hp', 2400, 0.7); const body = new Biquad('lp', 5200, 0.7);
-  const rings = [new Osc(), new Osc()]; const thump = new Osc();
-  return finish(render(0.2, (t) => {
-    const s = strike(t, 0.0, noise, hpf, [[1900, 0.2, 0.012], [1500, 0.14, 0.015]], 140, 0.8, 1.9, rings, thump);
-    return softClip(body.process(s) * 1.4);
-  }), 0.9, 25);
+/** A dry metallic click: band-passed noise only - no tonal ring (a bell) and no low thump (a drum). */
+function click(t: number, at: number, noise: () => number, bp: Biquad, tau: number, amp: number): number {
+  const lt = t - at;
+  return lt < 0 ? 0 : bp.process(noise()) * expDecay(lt, tau) * amp;
 }
 
-/** Weapon pickup: one heavy breech clack - a single, deeper hit than the ammo one. */
+/** Ammo pickup, shooter-style: a quick metallic "ka-chk" of a magazine seating and a bolt catching. */
+function ammo(): Float32Array {
+  const noise = createNoise(171); const a = new Biquad('bp', 3200, 1.6); const b = new Biquad('bp', 2100, 1.4); const body = new Biquad('lp', 7000, 0.7);
+  return finish(render(0.2, (t) => {
+    const s = click(t, 0.0, noise, a, 0.007, 2.4) + click(t, 0.075, noise, b, 0.014, 3.0);
+    return softClip(body.process(s));
+  }), 0.9, 20);
+}
+
+/** Weapon pickup: the same family, heavier - a rattling slide and a firm lock-up, still pure metal. */
 function weapon(): Float32Array {
-  const noise = createNoise(181); const hpf = new Biquad('hp', 2000, 0.7); const body = new Biquad('lp', 4800, 0.7);
-  const rings = [new Osc(), new Osc()]; const thump = new Osc();
-  return finish(render(0.26, (t) => {
-    const s = strike(t, 0.0, noise, hpf, [[520, 0.3, 0.04], [1340, 0.2, 0.025]], 90, 1.1, 1.6, rings, thump);
-    return softClip(body.process(s) * 1.4);
-  }), 0.95, 30);
+  const noise = createNoise(181); const a = new Biquad('bp', 2600, 1.3); const b = new Biquad('bp', 1700, 1.2); const c = new Biquad('bp', 3600, 1.8); const body = new Biquad('lp', 6500, 0.7);
+  return finish(render(0.3, (t) => {
+    const s = click(t, 0.0, noise, a, 0.01, 2.6) + click(t, 0.09, noise, b, 0.02, 3.2) + click(t, 0.16, noise, c, 0.008, 1.6);
+    return softClip(body.process(s));
+  }), 0.95, 25);
 }
 
 const FACTORIES: Record<EffectName, () => Float32Array> = { laser, bazooka, explosion, saw, spinup, pickup, respawn, die, diehard, alarm, capture, order, ammo, weapon };
