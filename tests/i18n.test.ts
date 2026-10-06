@@ -40,6 +40,14 @@ describe('dictionaries', () => {
   });
 });
 
+describe('ally commands wording', () => {
+  it('command labels carry no exclamation marks and the pause heading is "ally commands"', () => {
+    for (const dict of [en, ru]) for (const k of ['order.0', 'order.1', 'order.2'] as const) expect(dict[k], k).not.toContain('!');
+    expect(en['pause.ally']).toBe('Ally commands');
+    expect(ru['pause.ally']).toBe('Команды союзникам');
+  });
+});
+
 describe('language selection', () => {
   it('detects Russian from Telegram or browser hints, falls back to English', () => {
     expect(detectLang(['ru'])).toBe('ru');
@@ -86,7 +94,7 @@ describe('language selection', () => {
     expect(botName(0)).toBe('Нет');
     expect(dmMapName(0)).toBe('1. Два этажа');
     expect(ctfMapName(4)).toBe('5. Магистраль');
-    expect(orderLabel(1)).toBe('Взять флаг!');
+    expect(orderLabel(1)).toBe('Взять флаг');
     expect(orderShort(0)).toBe('ЗАЩИТА');
     expect(weaponName(2)).toBe('БАЗУКА');
     expect(skillName(99)).toBe('Очень сложная');

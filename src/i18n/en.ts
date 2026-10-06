@@ -66,15 +66,15 @@ export const en = {
   'lang.ru': 'Русский',
 
   'pause.title': 'Game paused',
-  'pause.ally': 'Ally',
+  'pause.ally': 'Ally commands',
   'pause.sound': 'Sound: {value}',
   'pause.end': 'End game',
   'pause.pause': 'Pause',
   'pause.resume': 'Resume',
 
   'order.0': 'Defend the base',
-  'order.1': 'Take their flag!',
-  'order.2': 'Freelance!',
+  'order.1': 'Take their flag',
+  'order.2': 'Freelance',
   'order.short.0': 'DEFEND',
   'order.short.1': 'ATTACK',
   'order.short.2': 'FREE',
@@ -101,7 +101,7 @@ export const en = {
   'help.dm':
     'The players appear in random spots of the labyrinth. When you kill an opponent, you get a point ("frag"), when you commit a suicide, you lose a frag. The player who has got the most frags wins the game.',
   'help.ctf':
-    "It's a team game (two vs two). In this game frags don't matter. The objective of the game is to steal the enemy flag and bring it to your own base. Only when the flag makes a hard trek from one base to another, the team obtains a point.\n\nThe point isn't given, when your flag is also captured by the enemy team, first you need to retake it.\n\nIf a player carrying a flag dies, the flag returns to the base.\n\nYou can give your ally one of three orders:\n\nDefend the base - the ally moves within your base.\nTake their flag! - the ally runs to the enemy flag.\nFreelance! - the ally moves wherever he wants.\n\nTo command your ally, use the order buttons on the screen or the pause menu.",
+    "It's a team game (two vs two). In this game frags don't matter. The objective of the game is to steal the enemy flag and bring it to your own base. Only when the flag makes a hard trek from one base to another, the team obtains a point.\n\nThe point isn't given, when your flag is also captured by the enemy team, first you need to retake it.\n\nIf a player carrying a flag dies, the flag returns to the base.\n\nYou can give your ally one of three orders:\n\nDefend the base - the ally moves within your base.\nTake their flag - the ally runs to the enemy flag.\nFreelance - the ally moves wherever he wants.\n\nTo command your ally, use the order buttons on the screen or the pause menu.",
 
   'about.text': 'Real Tournament (2026)\n\nBrowser port for Telegram.\nBuild {build}',
   'rotate.title': 'Rotate your phone',

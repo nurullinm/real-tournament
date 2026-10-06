@@ -114,11 +114,11 @@ describe('match lifecycle', () => {
     const texts: string[] = [];
     const ctx = new Proxy(r.ctx as object, { get: (t, n: string) => (n === 'fillText' ? (x: string) => { texts.push(x); } : n === 'measureText' ? (x: string) => ({ width: x.length * 7 }) : (t as Record<string, unknown>)[n]), set: () => true }) as unknown as CanvasRenderingContext2D;
     s.draw(ctx, frame(VIEWPORTS[0], true), 0);
-    expect(texts).toContain('Ally: Take their flag!');
+    expect(texts).toContain('Ally: Take their flag');
     for (let t = 0; t < 40; t++) s.tick(botInput(s.match, s.match.fighters[0]!));
     texts.length = 0;
     s.draw(ctx, frame(VIEWPORTS[0], true), 0);
-    expect(texts).not.toContain('Ally: Take their flag!'); // the toast fades after about two seconds
+    expect(texts).not.toContain('Ally: Take their flag'); // the toast fades after about two seconds
   });
 
   it('the order toast is shown in the selected language', () => {
@@ -132,7 +132,7 @@ describe('match lifecycle', () => {
       const texts: string[] = [];
       const ctx = new Proxy(r.ctx as object, { get: (t, n: string) => (n === 'fillText' ? (x: string) => { texts.push(x); } : n === 'measureText' ? (x: string) => ({ width: x.length * 7 }) : (t as Record<string, unknown>)[n]), set: () => true }) as unknown as CanvasRenderingContext2D;
       s.draw(ctx, frame(VIEWPORTS[0], true), 0);
-      expect(texts).toContain('Союзник: Взять флаг!');
+      expect(texts).toContain('Союзник: Взять флаг');
     } finally {
       setLang('en');
     }
