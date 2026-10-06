@@ -16,13 +16,22 @@ describe('Telegram webhook', () => {
     const { status, sent } = await run(req(start('/start')));
     expect(status).toBe(200);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ chat_id: 42, reply_markup: { inline_keyboard: [[{ text: 'Play', web_app: { url: 'https://game.example/' } }]] } });
+    expect(sent[0]).toMatchObject({ chat_id: 42, reply_markup: { inline_keyboard: [[{ text: '🎮 Play', web_app: { url: 'https://game.example/' } }]] } });
+  });
+
+  it('sends a short description together with the button, in the user\'s language', async () => {
+    const en = (await run(req(start('/start', 'en')))).sent[0] as { text: string };
+    const ru = (await run(req(start('/start', 'ru')))).sent[0] as { text: string };
+    expect(en.text).toContain('Real Tournament');
+    expect(en.text).toContain('Deathmatch');
+    expect(ru.text).toContain('Дэтматч');
+    expect(en.text.length).toBeLessThan(400);
   });
 
   it('speaks Russian to Russian-language users, also for /play and /start@bot', async () => {
     for (const text of ['/start', '/play', '/start@realtournament_bot', '/start payload']) {
       const { sent } = await run(req(start(text, 'ru')));
-      expect((sent[0] as { reply_markup: { inline_keyboard: { text: string }[][] } }).reply_markup.inline_keyboard[0]![0]!.text).toBe('Играть');
+      expect((sent[0] as { reply_markup: { inline_keyboard: { text: string }[][] } }).reply_markup.inline_keyboard[0]![0]!.text).toBe('🎮 Играть');
     }
   });
 

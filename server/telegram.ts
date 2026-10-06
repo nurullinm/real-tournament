@@ -7,8 +7,18 @@ interface Update { message?: { chat?: { id?: number }; text?: string; from?: { l
 export type SendMessage = (token: string, body: Record<string, unknown>) => Promise<void>;
 
 const TEXTS = {
-  ru: { text: 'Real Tournament: шутер 2 на 2 и дэтматч, одиночная игра и онлайн. Нажмите, чтобы играть.', button: 'Играть' },
-  en: { text: 'Real Tournament: deathmatch and capture the flag, solo or online. Tap to play.', button: 'Play' },
+  ru: {
+    text: '🎮 Real Tournament — культовый мобильный шутер 2012 года, теперь в Telegram.\n\n'
+      + '• Дэтматч и захват флага\n• Одиночная игра против ботов или онлайн с друзьями (до 4 игроков)\n• Играйте с телефоном в горизонтальном положении\n\n'
+      + 'Нажмите «Играть», чтобы начать.',
+    button: '🎮 Играть',
+  },
+  en: {
+    text: '🎮 Real Tournament — the cult 2012 mobile shooter, now in Telegram.\n\n'
+      + '• Deathmatch and capture the flag\n• Solo against bots, or online with friends (up to 4 players)\n• Play with your phone in landscape\n\n'
+      + 'Tap “Play” to start.',
+    button: '🎮 Play',
+  },
 } as const;
 
 const START = /^\/(start|play)(@\w+)?(\s|$)/i;
