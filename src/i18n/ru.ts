@@ -166,4 +166,6 @@ export const ru: Record<Key, string> = {
   'mp.team.red': 'Красные',
   'mp.ctfbots': '2 на 2: свободные места займут боты.',
   'common.done': 'Готово',
+  'mp.configuring': '{name} настраивает карту…',
+  'mp.getready': 'Приготовьтесь!',
 };

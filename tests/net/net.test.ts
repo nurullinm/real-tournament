@@ -136,3 +136,11 @@ describe('online capture the flag', () => {
     expect(run()).toEqual(run());
   });
 });
+
+describe('start countdown', () => {
+  it('counts down from a few seconds, in whole seconds', async () => {
+    const { COUNTDOWN_SECONDS } = await import('../../src/net/protocol');
+    expect(COUNTDOWN_SECONDS).toBeGreaterThanOrEqual(3);
+    expect(Number.isInteger(COUNTDOWN_SECONDS)).toBe(true);
+  });
+});

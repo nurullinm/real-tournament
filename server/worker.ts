@@ -1,7 +1,7 @@
 import { verifyInitData } from './auth';
 import { handleTelegram } from './telegram';
 import {
-  CODE_LENGTH, MAX_PLAYERS, NET_TICK_MS, TEAM_SIZE, assignFighters, clampConfig, cleanName, DEFAULT_CONFIG,
+  CODE_LENGTH, COUNTDOWN_SECONDS, MAX_PLAYERS, NET_TICK_MS, TEAM_SIZE, assignFighters, clampConfig, cleanName, DEFAULT_CONFIG,
   type ClientMsg, type RoomConfig, type ServerMsg, type WireInput,
 } from '../src/net/protocol';
 
@@ -18,6 +18,9 @@ export class Room {
   private players = new Map<number, Player>();
   private cfg: RoomConfig = { ...DEFAULT_CONFIG };
   private started = false;
+  /** the host pressed start and the countdown is running: the lobby is frozen */
+  private starting = false;
+  private countdown: ReturnType<typeof setTimeout> | null = null;
   private tick = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private pendingDrops: number[] = [];
@@ -50,7 +53,7 @@ export class Room {
       try { msg = JSON.parse(String(ev.data)) as ClientMsg; } catch { return; }
       if (msg.t === 'hello') {
         if (me) return;
-        if (this.started) return this.reject(ws, 'started');
+        if (this.started || this.starting) return this.reject(ws, 'started');
         const live = [...this.players.values()].filter((p) => p.alive);
         if (msg.create && live.length > 0) return this.reject(ws, 'bad'); // code collision
         if (!msg.create && live.length === 0) return this.reject(ws, 'notfound');
@@ -61,7 +64,7 @@ export class Room {
           if (!u) return this.reject(ws, 'auth');
           name = cleanName(msg.name, u.name);
         }
-        if (this.started) return this.reject(ws, 'started');
+        if (this.started || this.starting) return this.reject(ws, 'started');
         const slot = [...Array(MAX_PLAYERS).keys()].find((s) => !this.players.get(s)?.alive)!;
         const taken = new Set(live.map((p) => p.color));
         const color = [0, 1, 2, 3].find((c) => !taken.has(c)) ?? 0;
@@ -78,30 +81,30 @@ export class Room {
       if (!me || !me.alive) return;
       switch (msg.t) {
         case 'name':
-          if (!this.started) { me.name = cleanName(msg.name, me.name); this.lobby(); }
+          if (!this.started && !this.starting) { me.name = cleanName(msg.name, me.name); this.lobby(); }
           break;
         case 'color':
-          if (!this.started && Number.isInteger(msg.color) && msg.color >= 0 && msg.color <= 3
+          if (!this.started && !this.starting && Number.isInteger(msg.color) && msg.color >= 0 && msg.color <= 3
             && ![...this.players.values()].some((p) => p.alive && p !== me && p.color === msg.color)) {
             me.color = msg.color;
             this.lobby();
           }
           break;
         case 'team':
-          if (!this.started && (msg.team === 0 || msg.team === 1)
+          if (!this.started && !this.starting && (msg.team === 0 || msg.team === 1)
             && [...this.players.values()].filter((p) => p.alive && p !== me && p.team === msg.team).length < TEAM_SIZE) {
             me.team = msg.team;
             this.lobby();
           }
           break;
         case 'cfg':
-          if (me.host && !this.started) {
+          if (me.host && !this.started && !this.starting) {
             this.cfg = clampConfig(msg.cfg, [...this.players.values()].filter((p) => p.alive).length);
             this.lobby();
           }
           break;
         case 'start':
-          if (me.host && !this.started) this.begin();
+          if (me.host && !this.started && !this.starting) this.startCountdown();
           break;
         case 'in':
           if (this.started) {
@@ -129,6 +132,24 @@ export class Room {
   private reject(ws: WebSocket, reason: 'full' | 'started' | 'auth' | 'bad' | 'notfound'): void {
     this.send(ws, { t: 'error', reason });
     try { ws.close(1008, reason); } catch { /* ignore */ }
+  }
+
+  /** "Get ready": 3, 2, 1 for everybody, then the match begins. The lobby is frozen meanwhile. */
+  private startCountdown(): void {
+    this.starting = true;
+    let n = COUNTDOWN_SECONDS;
+    const tick = (): void => {
+      if (n > 0) {
+        this.broadcast({ t: 'countdown', n });
+        n--;
+        this.countdown = setTimeout(tick, 1000);
+      } else {
+        this.countdown = null;
+        this.starting = false;
+        this.begin();
+      }
+    };
+    tick();
   }
 
   private begin(): void {
@@ -186,6 +207,9 @@ export class Room {
   }
 
   private stop(): void {
+    if (this.countdown) clearTimeout(this.countdown);
+    this.countdown = null;
+    this.starting = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }

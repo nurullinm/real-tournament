@@ -208,3 +208,12 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .playerhead .pl { flex: 0 1 auto; max-width: 62%; }
 .pl { border: 2px solid var(--pc, transparent); background: color-mix(in srgb, var(--pc, #15184a) 22%, #15184a); }
 .pl.me { background: color-mix(in srgb, var(--pc, #15184a) 45%, #15184a); outline: none; }
+/* "get ready" countdown before an online match */
+.countdown { font-family: ui-rounded, system-ui, -apple-system, sans-serif; display: none; position: fixed; inset: 0; z-index: 60; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(5, 6, 20, 0.72); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); pointer-events: auto; }
+.countdown.on { display: flex; }
+.cd-title { color: var(--accent); font-size: 20px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.cd-num { color: #fff; font-size: 110px; font-weight: 900; line-height: 1; text-shadow: 0 4px 24px rgba(255, 163, 26, 0.55); }
+.cd-num.pop { animation: cd-pop 0.9s ease-out; }
+@keyframes cd-pop { 0% { transform: scale(1.7); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.configuring { color: var(--accent); font-size: 14px; text-align: center; padding: 4px 0; }
+.summary { color: var(--text); font-size: 13px; font-weight: 500; text-align: center; line-height: 1.4; }

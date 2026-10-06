@@ -39,6 +39,8 @@ export interface Ui {
   showMultiplayer(error?: string): void;
   showConnecting(): void;
   showLobby(view: LobbyView): void;
+  /** the "get ready" overlay with the 3-2-1 count; `null` removes it */
+  showCountdown(n: number | null): void;
   /** `note` is shown at the right of the window header (e.g. the team's frags) */
   showPause(canOrder: boolean, currentOrder: number, board?: ScoreRow[], note?: string): void;
   showResult(m: Match, online?: { names: string[]; slot: number }): void;
@@ -92,7 +94,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
   };
   applyStatic();
   onLangChange(applyStatic);
-  root.append(menu, over, pauseBtn, rotate);
+  const countdownNum = h('div', { class: 'cd-num' });
+  const countdownEl = h('div', { class: 'countdown' }, h('div', { class: 'cd-title' }), countdownNum);
+  root.append(menu, over, pauseBtn, rotate, countdownEl);
   // The on-screen keyboard: a tap outside the field closes it, a floating "Done" button is always reachable (in landscape
   // the keyboard hides nearly the whole screen), and the windows shrink to the visible part of the screen.
   const kbDone = h('button', { class: 'kbdone', text: t('common.done'), onclick: () => { (document.activeElement as HTMLElement | null)?.blur(); syncKeyboard(); } });
@@ -345,11 +349,12 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         body.push(h('div', { class: 'colorrow' }, h('div', { class: 'plabel', text: t('mp.vest') }), swatches));
       }
       if (!v.host) {
-        const line = (k: string, val: string): HTMLElement => h('div', { class: 'kv' }, h('span', { text: k }), h('b', { text: val }));
         body.push(
-          line(t('mp.l.mode'), ctf ? t('menu.ctf') : t('menu.dm')),
-          line(t('mp.l.map'), ctf ? ctfMapName(cfg.mapId) : dmMapName(cfg.mapId)),
-          h('div', { class: 'help', text: t('mp.wait') }),
+          h('div', { class: 'configuring', text: t('mp.configuring', { name: v.players.find((p) => p.host)?.name ?? '' }) }),
+          // the host's settings in one line: mode · map · bots · level · limit
+          h('div', { class: 'summary', text: (ctf
+            ? [t('menu.ctf'), ctfMapName(cfg.mapId), levelName(cfg.skill), `${t('mp.l.caps')} ${none(cfg.fragLimit)}`]
+            : [t('menu.dm'), dmMapName(cfg.mapId), `${t('mp.l.bots')} ${cfg.bots}`, levelName(cfg.skill), `${t('mp.l.frags')} ${none(cfg.fragLimit)}`]).join(' · ') }),
         );
       }
     } else {
@@ -439,6 +444,15 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     showMain: mainScreen,
     showMultiplayer: multiplayerScreen,
     showConnecting: connectingScreen,
+    showCountdown(n): void {
+      countdownEl.classList.toggle('on', n !== null);
+      if (n === null) return;
+      (countdownEl.firstChild as HTMLElement).textContent = t('mp.getready');
+      countdownNum.textContent = String(n);
+      countdownNum.classList.remove('pop');
+      void countdownNum.offsetWidth; // restart the animation for every number
+      countdownNum.classList.add('pop');
+    },
     showLobby: lobbyScreen,
     showPause(canOrder, currentOrder, board, note): void {
       clear(over);

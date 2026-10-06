@@ -165,6 +165,8 @@ export const en = {
   'mp.team.red': 'Red',
   'mp.ctfbots': '2 vs 2: bots fill the empty places.',
   'common.done': 'Done',
+  'mp.configuring': '{name} is setting up the match…',
+  'mp.getready': 'Get ready!',
 } as const;
 
 export type Key = keyof typeof en;

@@ -5,6 +5,8 @@ export const NAME_MAX = 16;
 export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 5;
 export const NET_TICK_MS = 60;
+/** seconds of "get ready" between the host's start and the first tick */
+export const COUNTDOWN_SECONDS = 3;
 
 export type RoomMode = 'dm' | 'ctf';
 
@@ -57,6 +59,8 @@ export type ServerMsg =
   /** server tick n: input of every human slot, plus slots that dropped out at this tick (bots take over) */
   | { t: 'tick'; n: number; i: WireInput[]; d?: number[] }
   | { t: 'pong'; ts: number }
+  /** the host pressed start: 3, 2, 1, then the `start` message follows */
+  | { t: 'countdown'; n: number }
   | { t: 'error'; reason: 'full' | 'started' | 'auth' | 'bad' | 'notfound' };
 
 export function cleanName(raw: unknown, fallback = 'Player'): string {

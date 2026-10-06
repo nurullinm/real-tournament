@@ -130,6 +130,7 @@ async function boot(): Promise<void> {
   function leaveRoom(): void {
     net?.close();
     net = null;
+    ui.showCountdown(null);
     if (pingTimer) clearInterval(pingTimer);
     pingTimer = null;
     lockstep = null;
@@ -149,7 +150,8 @@ async function boot(): Promise<void> {
             lobbyView = { code: roomCode, players: m.players, cfg: m.cfg, slot: mySlot, host: m.players.some((p) => p.slot === mySlot && p.host) };
             if (!session) ui.showLobby(lobbyView);
             break;
-          case 'start': startOnline(m); break;
+          case 'countdown': ui.showCountdown(m.n); audio.play('order'); break;
+          case 'start': ui.showCountdown(null); startOnline(m); break;
           case 'tick': lockstep?.push(m.n, m.i, m.d); clock.onTick(m.n, performance.now()); break;
           case 'pong': clock.onPong(m.ts, performance.now()); break;
           case 'error': leaveRoom(); ui.showMultiplayer(t(`mp.err.${m.reason}`)); break;
