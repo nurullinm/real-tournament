@@ -95,7 +95,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
   root.append(menu, over, pauseBtn, rotate);
   // The on-screen keyboard: a tap outside the field closes it, a floating "Done" button is always reachable (in landscape
   // the keyboard hides nearly the whole screen), and the windows shrink to the visible part of the screen.
-  const kbDone = h('button', { class: 'kbdone', text: t('common.done'), onclick: () => (document.activeElement as HTMLElement | null)?.blur() });
+  const kbDone = h('button', { class: 'kbdone', text: t('common.done'), onclick: () => { (document.activeElement as HTMLElement | null)?.blur(); syncKeyboard(); } });
   root.append(kbDone);
   const fitToViewport = (): void => {
     const vv = window.visualViewport;
