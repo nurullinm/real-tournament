@@ -110,9 +110,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     if (canContinue) col.append(button(t('menu.continue'), handlers.continueGame, 'primary'));
     col.append(
       button(t('menu.dm'), () => setupScreen('dm', canContinue), canContinue ? '' : 'primary'),
+      button(t('menu.ctf'), () => setupScreen('ctf', canContinue)),
       // not available yet: a disabled button
       h('button', { class: 'btn', disabled: true, 'aria-disabled': 'true', text: t('menu.multiplayer') }),
-      button(t('menu.ctf'), () => setupScreen('ctf', canContinue)),
       button(t('menu.settings'), () => settingsScreen(() => mainScreen(canContinue))),
       button(t('menu.help'), () => helpScreen(() => mainScreen(canContinue), menu)),
       button(t('menu.about'), () => aboutScreen(canContinue)),
