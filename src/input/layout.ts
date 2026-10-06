@@ -42,7 +42,7 @@ export function computeLayout(w: number, h: number, safe: Insets, withOrders = f
   ];
   if (withOrders) {
     for (let i = 0; i < 3; i++) {
-      buttons.push({ id: `order${i}` as ButtonId, x: leftX, y: safe.t + 56 + i * (small + 8), w: small * 2, h: small });
+      buttons.push({ id: `order${i}` as ButtonId, x: leftX, y: safe.t + 84 + i * (small + 6), w: Math.round(small * 1.9), h: Math.round(small * 0.85) });
     }
   }
   return { buttons };
