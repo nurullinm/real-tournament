@@ -35,10 +35,10 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
   ctx.font = '600 16px ui-rounded, system-ui, sans-serif';
   ctx.textBaseline = 'middle';
 
-  bar(ctx, left, top, 120, 14, p.hp / 100, '#e5484d');
-  text(ctx, String(Math.max(0, p.hp)), left + 126, top + 7);
-  bar(ctx, left, top + 20, 120, 10, p.armor / 100, '#46a3ff');
-  text(ctx, String(p.armor), left + 126, top + 25);
+  bar(ctx, left, top, 120, 12, p.hp / 100, '#e5484d');
+  text(ctx, String(Math.max(0, p.hp)), left + 126, top + 6);
+  bar(ctx, left, top + 18, 120, 12, p.armor / 100, '#46a3ff');
+  text(ctx, String(p.armor), left + 126, top + 24);
   const ammo = p.currentWeapon === 0 ? '∞' : String(p.ammo[p.currentWeapon]);
   text(ctx, `${weaponName(p.currentWeapon)}  ${ammo}`, left, top + 46);
 
