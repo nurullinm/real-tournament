@@ -98,8 +98,20 @@ Workflow `.github/workflows/pages.yml` при каждом пуше в `main`:
      -d '{"menu_button":{"type":"web_app","text":"Play","web_app":{"url":"https://<адрес игры>/?v='"$(git rev-parse --short HEAD)"'"}}}'
    ```
 
-3. Сервера у бота нет: команды в чате (`/start` и т. п.) ничего не делают, игра запускается кнопкой меню. Кнопка «Позвать друга» в лобби открывает окно пересылки с кодом комнаты и ссылкой на бота. Если у бота другое имя, поменяйте `realtournament_bot` в `shareRoom` (`src/ui/screens.ts`).
-4. Mini App открывается в полноэкранном режиме и блокирует альбомную ориентацию (`src/platform/telegram.ts`).
+3. Команды `/start` и `/play` обрабатывает тот же Worker сервера комнат (маршрут `/tg`, файл `server/telegram.ts`): он отвечает сообщением с кнопкой «Играть» (`web_app`). Подключить вебхук после деплоя:
+
+   ```bash
+   SECRET=$(openssl rand -hex 24)
+   (cd server && printf '%s' "$SECRET" | npx wrangler secret put WEBHOOK_SECRET)
+   npm run deploy:rooms        # адрес игры для кнопки берётся из GAME_URL в server/wrangler.toml
+   curl -s "https://api.telegram.org/bot<ТОКЕН>/setWebhook" -H 'Content-Type: application/json' \
+     -d "{\"url\":\"https://<адрес сервера комнат>/tg\",\"secret_token\":\"$SECRET\",\"allowed_updates\":[\"message\"]}"
+   ```
+
+   Без правильного секрета в заголовке `X-Telegram-Bot-Api-Secret-Token` маршрут отвечает 403.
+4. Кнопка «Открыть» в профиле бота и в чате вместо START включается только в BotFather (через Bot API её не настроить): `/mybots` → бот → Bot Settings → Configure Mini App → Enable Mini App → указать адрес игры (без `?v=`). Проверка: `getMe` вернёт `has_main_web_app: true`.
+5. Игра запускается кнопкой меню (Play), кнопкой в ответе на `/start` или кнопкой «Открыть». Кнопка «Позвать друга» в лобби открывает окно пересылки с кодом комнаты и ссылкой на бота. Если у бота другое имя, поменяйте `realtournament_bot` в `shareRoom` (`src/ui/screens.ts`).
+6. Mini App открывается в полноэкранном режиме и блокирует альбомную ориентацию (`src/platform/telegram.ts`).
 
 ## 7. Оригинальные ресурсы (если нужно заново разобрать JAR)
 

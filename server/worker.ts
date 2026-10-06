@@ -1,10 +1,11 @@
 import { verifyInitData } from './auth';
+import { handleTelegram } from './telegram';
 import {
   CODE_LENGTH, MAX_PLAYERS, NET_TICK_MS, TEAM_SIZE, assignFighters, clampConfig, cleanName, DEFAULT_CONFIG,
   type ClientMsg, type RoomConfig, type ServerMsg, type WireInput,
 } from '../src/net/protocol';
 
-interface Env { ROOMS: DurableObjectNamespace; BOT_TOKEN?: string; ALLOWED_ORIGIN?: string }
+interface Env { ROOMS: DurableObjectNamespace; BOT_TOKEN?: string; ALLOWED_ORIGIN?: string; WEBHOOK_SECRET?: string; GAME_URL?: string }
 
 const MAX_AHEAD = 30; // ticks a client may stamp into the future (about 2 s)
 const idle = (): WireInput => ({ c: 0, ws: -1, wd: 0 });
@@ -193,6 +194,7 @@ export class Room {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname === '/tg' && req.method === 'POST') return handleTelegram(req, env); // Telegram webhook (own secret check)
     const origin = req.headers.get('Origin');
     if (env.ALLOWED_ORIGIN && origin && origin !== env.ALLOWED_ORIGIN) return new Response('forbidden', { status: 403 });
     const m = /^\/room\/([A-Z0-9]+)$/.exec(url.pathname);

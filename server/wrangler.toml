@@ -9,3 +9,6 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[vars]
+GAME_URL = "https://real-tournament.circ-ops.workers.dev/"
