@@ -162,7 +162,14 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) (window as unknown as { __rt: unknown }).__rt = { get session() { return session; }, loop, ui, settings, tickOnce, renderFrame };
   const auto = new URLSearchParams(location.search).get('autostart');
   resize();
-  if (auto === 'dm' || auto === 'ctf') start(auto);
+  if (auto === 'dm' || auto === 'ctf') {
+    const map = Number(new URLSearchParams(location.search).get('map'));
+    if (Number.isInteger(map) && map >= 0) {
+      if (auto === 'dm') settings.dm.map = Math.min(map, 6);
+      else settings.ctf.map = Math.min(map, 4);
+    }
+    start(auto);
+  }
   else ui.showMain(false);
 }
 
