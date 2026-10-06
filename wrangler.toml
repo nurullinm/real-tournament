@@ -1,0 +1,6 @@
+# Static hosting of the game (dist/) as a Cloudflare Worker with assets; the room server lives in server/
+name = "real-tournament"
+compatibility_date = "2025-09-01"
+
+[assets]
+directory = "./dist"
