@@ -10,3 +10,4 @@ dist/
 .superpowers/
 tools/cfr.jar
 tools/out/
+tools/jdk/
