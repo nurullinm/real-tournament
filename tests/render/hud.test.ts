@@ -126,7 +126,7 @@ describe('actors and effects', () => {
   });
   it('draws rockets mirrored by direction', () => {
     const m = createMatch(DM_OPTS, REAL_MAPS[0]!, 1, REAL_ASSETS);
-    m.projectiles.push({ type: 56, x: 100, y: 100, v: 5, owner: 0, selfLiq: 300 });
+    m.projectiles.push({ type: 56, x: 100, y: 100, v: 5, owner: 0, ownerNumber: 0, selfLiq: 300 });
     const { ctx, calls } = mockCtx();
     drawActors(ctx, { ...m, numFighters: 0 } as typeof m, sprites, newWorldAnim());
     expect(calls.some((c) => c.name === 'drawImage')).toBe(true);
@@ -255,5 +255,66 @@ describe('weapon swap button', () => {
     const rec = mockCtx();
     drawControls(rec.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 2);
     expect(JSON.stringify(rec.calls)).toBe(JSON.stringify(draw(1)));
+  });
+});
+
+describe('team frags in the HUD', () => {
+  const ctf = () => createMatch(CTF_OPTS, REAL_MAPS[7]!, 1, REAL_ASSETS);
+  const texts = (m: ReturnType<typeof ctf>, v = vp) => {
+    const rec = mockCtx();
+    drawHud(rec.ctx, m, 0, v, safe);
+    return rec;
+  };
+
+  it('lists the player first, then the ally, with their personal frags (2v2 CTF)', () => {
+    const m = ctf();
+    m.fighters[0]!.frags = 3;
+    m.fighters[1]!.frags = 1;
+    m.fighters[2]!.frags = 9; // enemies are not shown
+    const t = texts(m).calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+    expect(t).toContain('You 3');
+    expect(t).toContain('Ally 1');
+    expect(t.join(' ')).not.toContain('9');
+    expect(t.indexOf('You 3')).toBeLessThan(t.indexOf('Ally 1'));
+  });
+
+  it('shows only the player in a solo CTF match', () => {
+    const m = createMatch({ ...CTF_OPTS, team: false }, REAL_MAPS[7]!, 1, REAL_ASSETS);
+    m.fighters[0]!.frags = 2;
+    const t = texts(m).calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+    expect(t).toContain('You 2');
+    expect(t.some((x) => x.startsWith('Ally'))).toBe(false);
+  });
+
+  it('does not add anything to the Deathmatch scoreboard (the score already is the frags)', () => {
+    const m = createMatch(DM_OPTS, REAL_MAPS[0]!, 1, REAL_ASSETS);
+    const t = texts(m).calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+    expect(t.some((x) => x.startsWith('You ') || x.startsWith('Ally'))).toBe(false);
+  });
+
+  it('is translated, and never runs into the health block: numbers only when the labelled pill would not fit', () => {
+    setLang('ru');
+    try {
+      const m = ctf();
+      m.fighters[0]!.frags = 12;
+      m.fighters[1]!.frags = 7;
+      // roomy screen: labelled
+      const roomy = texts(m).calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+      expect(roomy).toContain('Вы 12');
+      expect(roomy).toContain('Союзник 7');
+      // narrow screen with big side insets: compact numbers
+      const small = { w: 667, h: 375, dpr: 2 };
+      const rec = texts(m, small);
+      const t = rec.calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+      expect(t).toContain('12');
+      expect(t).toContain('7');
+      expect(t).not.toContain('Союзник 7');
+      for (const v of [vp, small]) {
+        const pill = texts(m, v).calls.find((c) => c.name === 'roundRect' && Number(c.args[3]) === 18)!;
+        expect(Number(pill.args[0]), `${v.w}`).toBeGreaterThanOrEqual(safe.l + 12 + 170);
+      }
+    } finally {
+      setLang('en');
+    }
   });
 });

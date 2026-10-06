@@ -88,6 +88,9 @@ export const en = {
   'hud.weapon.0': 'SAW',
   'hud.weapon.1': 'LASER',
   'hud.weapon.2': 'BAZOOKA',
+  'hud.you': 'You',
+  'hud.ally': 'Ally',
+  'result.frags': 'Frags',
   'hud.firstTo': 'FIRST TO {n}',
 
   'help.tab.controls': 'Controls',

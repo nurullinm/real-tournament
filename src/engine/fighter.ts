@@ -10,7 +10,7 @@ export function createFighter(number: number): Fighter {
     hp: 0, armor: 0, isCycling: false, isPassenger: false, isCarrying: false,
     ammo: [0, 0, 0], weaponPresent: [true, true, false], currentWeapon: 1, pendingWeapon: -1, weaponState: 0,
     busySequence: null, busyIndex: 0, aiJumpDestX: 0, aiIgnoreChasers: false,
-    aiCycleDestX: 0, aiCycleDestY: 0, aiNodeBehind: 0, aiNodeAhead: 0, aiColorFlag: 1, aiOrder: 0,
+    aiCycleDestX: 0, aiCycleDestY: 0, aiNodeBehind: 0, aiNodeAhead: 0, aiColorFlag: 1, aiOrder: 0, frags: 0,
   };
 }
 

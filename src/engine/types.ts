@@ -70,6 +70,8 @@ export interface Fighter {
   aiColorFlag: number;
   /** 0 defend, 1 attack, 2 roam */
   aiOrder: number;
+  /** personal frag count (kills of enemies; -1 for a suicide or a teammate kill), kept in every mode */
+  frags: number;
 }
 
 export interface PobjState {
@@ -87,6 +89,8 @@ export interface Projectile {
   y: number;
   v: number;
   owner: number;
+  /** fighter who fired it (for personal frag credit) */
+  ownerNumber: number;
   /** x beyond which the rocket detonates (range limit) */
   selfLiq: number;
 }

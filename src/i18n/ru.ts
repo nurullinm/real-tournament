@@ -89,6 +89,9 @@ export const ru: Record<Key, string> = {
   'hud.weapon.0': 'ПИЛА',
   'hud.weapon.1': 'ЛАЗЕР',
   'hud.weapon.2': 'БАЗУКА',
+  'hud.you': 'Вы',
+  'hud.ally': 'Союзник',
+  'result.frags': 'Фраги',
   'hud.firstTo': 'ДО {n}',
 
   'help.tab.controls': 'Управление',

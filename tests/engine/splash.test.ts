@@ -10,7 +10,7 @@ function blast(offsets: number[], blastY = 150, owner = 0): Match {
   place(m.fighters[0]!, 20, 160, true); // shooter far away unless an offset says otherwise
   const bx = 105; // projectile moves 5 and passes its range limit (90) => explodes at x = 105
   offsets.forEach((dx, i) => place(m.fighters[i + 1]!, bx + dx, 160, true));
-  m.projectiles.push({ type: 56, x: 100, y: blastY, v: 5, owner, selfLiq: 90 });
+  m.projectiles.push({ type: 56, x: 100, y: blastY, v: 5, owner, ownerNumber: owner, selfLiq: 90 });
   stepProjectiles(m);
   return m;
 }
@@ -50,7 +50,7 @@ describe('rocket explosion radius', () => {
     m.fighters[1]!.side = 0; // teammate
     place(m.fighters[0]!, 112, 160, true);
     place(m.fighters[1]!, 110, 160, true);
-    m.projectiles.push({ type: 56, x: 100, y: 150, v: 5, owner: 0, selfLiq: 90 });
+    m.projectiles.push({ type: 56, x: 100, y: 150, v: 5, owner: 0, ownerNumber: 0, selfLiq: 90 });
     stepProjectiles(m);
     expect(100 - m.fighters[0]!.hp).toBeGreaterThan(0);
     expect(100 - m.fighters[1]!.hp).toBeGreaterThan(0);
@@ -70,7 +70,7 @@ describe('rocket explosion radius', () => {
       place(m.fighters[0]!, 20, 160, true);
       place(m.fighters[1]!, 105 + 12, 160, true);
       place(m.fighters[2]!, 105 - 12, 160, true);
-      m.projectiles.push({ type: 56, x: 100, y: 150, v: 5, owner: 0, selfLiq: 90 });
+      m.projectiles.push({ type: 56, x: 100, y: 150, v: 5, owner: 0, ownerNumber: 0, selfLiq: 90 });
       stepProjectiles(m);
       const first = 100 - m.fighters[1]!.hp;
       const second = 100 - m.fighters[2]!.hp;
@@ -86,7 +86,7 @@ describe('rocket explosion radius', () => {
     place(m.fighters[0]!, 20, 160, true);
     place(m.fighters[1]!, 105, 160, true);
     m.fighters[1]!.hp = 5;
-    m.projectiles.push({ type: 56, x: 100, y: 150, v: 5, owner: 0, selfLiq: 90 });
+    m.projectiles.push({ type: 56, x: 100, y: 150, v: 5, owner: 0, ownerNumber: 0, selfLiq: 90 });
     stepProjectiles(m);
     const names = m.events.filter((e) => e.kind === 'sound').map((e) => (e as { name: string }).name);
     expect(names).toContain('explosion');

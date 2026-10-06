@@ -243,7 +243,7 @@ export function moveCyclist(m: Match, f: Fighter, cmdIn: number): void {
     const t = pickTarget(m, f, x1, x2, y);
     if (t) {
       x2 = t.x;
-      applyDamage(m, f.side, t, m.rng.range(20, 40), false, true);
+      applyDamage(m, f.side, t, m.rng.range(20, 40), false, true, f);
       if (m.opts.violence) emitFx(m, `blood${m.rng.int(3)}`, x2, y);
     }
     m.rays.push({ x1, x2, y, tick: m.tick, bright: 0xffff66, dim: 0xdddd00 });

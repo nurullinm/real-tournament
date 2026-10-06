@@ -1,6 +1,7 @@
 import type { AllyOrder } from '../bots';
 import type { Match } from '../engine/types';
 import { botName, colorName, ctfMapName, dmMapName, onLangChange, orderLabel, skillName, t, type LangPref } from '../i18n';
+import { teamFragItems } from '../render/hud';
 import { clear, h } from './dom';
 import { cycle, type GameSettings } from './settings';
 
@@ -250,8 +251,13 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
           h('div', { class: cls, text: String(r.score) }),
         );
       });
+      const body: HTMLElement[] = [grid];
+      if (m.gameMode === 1) {
+        const frags = teamFragItems(m, 0).map((i) => `${i.label} ${i.frags}`).join('  ·  ');
+        body.push(h('div', { class: 'fragline', text: `${t('result.frags')}: ${frags}` }));
+      }
       setPausedUi(false);
-      over.append(win({ title: t('result.title'), body: [grid], footer: [button(t('common.menu'), handlers.endGame, 'primary')], small: true }));
+      over.append(win({ title: t('result.title'), body, footer: [button(t('common.menu'), handlers.endGame, 'primary')], small: true }));
       open(over);
       over.classList.add('plain');
     },

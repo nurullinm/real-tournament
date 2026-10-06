@@ -58,22 +58,30 @@ export function respawnFighter(m: Match, f: Fighter): void {
 }
 
 /** G_KillFighterCommon: `side` is the credited side. */
-export function killFighterCommon(m: Match, side: number, f: Fighter, countScore: boolean): void {
+export function killFighterCommon(m: Match, side: number, f: Fighter, countScore: boolean, killer: Fighter | null = null): void {
   if (m.gameMode === 0 && countScore) {
     if (f.side === side) m.score[side]!--;
     else m.score[side]!++;
     m.events.push({ kind: 'kill', killer: side, victim: f.side });
   }
+  if (countScore) creditFrag(f, killer);
   returnFlag(m, f, false);
   setHp(f, 0);
   f.weaponState = 0;
+}
+
+/** Personal frag credit: +1 for killing an enemy, -1 for a suicide (no killer, or killing yourself) or a teammate kill. */
+function creditFrag(victim: Fighter, killer: Fighter | null): void {
+  if (!killer || killer === victim) victim.frags--;
+  else if (killer.side === victim.side) killer.frags--;
+  else killer.frags++;
 }
 
 /**
  * G_HurtFighter. `gore` allows the violent death animations (gated by the Violence option),
  * `dieSound` plays the death sound.
  */
-export function applyDamage(m: Match, side: number, victim: Fighter, amount: number, gore: boolean, dieSound: boolean): void {
+export function applyDamage(m: Match, side: number, victim: Fighter, amount: number, gore: boolean, dieSound: boolean, killer: Fighter | null = null): void {
   if (victim.armor > 0) {
     const q = amount >> 2;
     const absorbed = Math.min(m.rng.range(q, amount - q), victim.armor);
@@ -84,7 +92,7 @@ export function applyDamage(m: Match, side: number, victim: Fighter, amount: num
   }
   if (victim.hp > 0) return;
   if (dieSound) sound(m, 'die', victim.x, victim.y);
-  killFighterCommon(m, side, victim, true);
+  killFighterCommon(m, side, victim, true, killer);
   if (victim.isCycling) {
     victim.busyIndex = 15;
     return;

@@ -73,7 +73,7 @@ export function advanceWeapon(m: Match, f: Fighter): void {
         const x2 = f.headsLeft ? shootXLeft(m, x, y, 24) : shootXRight(m, x, y, 24);
         const t = pickTarget(m, f, x, x2, y);
         if (t) {
-          applyDamage(m, f.side, t, m.rng.range(20, 50), true, true);
+          applyDamage(m, f.side, t, m.rng.range(20, 50), true, true, f);
           blood(m, t.x, y);
         }
         break;
@@ -87,7 +87,7 @@ export function advanceWeapon(m: Match, f: Fighter): void {
         const t = pickTarget(m, f, x1, x2, y);
         if (t) {
           x2 = t.x;
-          applyDamage(m, f.side, t, m.rng.range(10, 20), false, true);
+          applyDamage(m, f.side, t, m.rng.range(10, 20), false, true, f);
           blood(m, x2, y);
         }
         pushRay(m, x1, x2, y, 0xbbffff, 61166);
@@ -100,7 +100,7 @@ export function advanceWeapon(m: Match, f: Fighter): void {
         const x1 = f.headsLeft ? f.x - mx : f.x + mx;
         const v = f.headsLeft ? -5 : 5;
         const limit = f.headsLeft ? shootXLeft(m, x1, y, 96) : shootXRight(m, x1, y, 96);
-        if (m.projectiles.length < MAX_PROJECTILES) m.projectiles.push({ type: 56, x: x1, y, v, owner: f.side, selfLiq: limit });
+        if (m.projectiles.length < MAX_PROJECTILES) m.projectiles.push({ type: 56, x: x1, y, v, owner: f.side, ownerNumber: f.number, selfLiq: limit });
         break;
       }
     }
@@ -140,7 +140,7 @@ function thinkProjectile(m: Match, p: Match['projectiles'][number]): boolean {
     if (d >= 22) continue;
     // the original scales the shared damage variable in place, so later victims take cumulatively less
     if (d > 6) damage = Math.trunc((damage * (d - 6)) / 16);
-    applyDamage(m, p.owner, t, damage, true, false);
+    applyDamage(m, p.owner, t, damage, true, false, m.fighters[p.ownerNumber] ?? null);
     if (t.hp <= 0) killed = true;
   }
   emitFx(m, 'smokeLong', x, sy - 8);
