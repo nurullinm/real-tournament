@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "real_tournament",
+  "project_id": "f9ed5ff5-b7a4-4c81-a10c-56666f2b27ec"
+}
