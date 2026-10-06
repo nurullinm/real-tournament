@@ -78,6 +78,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
       button('Help', () => helpScreen(() => mainScreen(canContinue), menu)),
       button('About', () => aboutScreen(canContinue)),
     );
+    col.append(h('div', { class: 'build', text: `build ${__BUILD__}` }));
     menu.append(h('div', { class: 'hero' }), col);
     open(menu);
   }
@@ -138,7 +139,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
   function aboutScreen(canContinue: boolean): void {
     clear(menu);
     menu.append(h('div', { class: 'hero' }), h('div', { class: 'col' }, h('h2', { text: 'About' }),
-      h('div', { class: 'help', text: 'Real Tournament (2012)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.' }),
+      h('div', { class: 'help', text: `Real Tournament (2012)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.\nBuild ${__BUILD__}` }),
       button('Back', () => mainScreen(canContinue), 'primary')));
     open(menu);
   }
