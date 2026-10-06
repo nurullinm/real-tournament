@@ -31,7 +31,11 @@ export function createKeyboardInput(target: Pick<Window, 'addEventListener' | 'r
     }
   };
   const up = (e: Event): void => { held.delete((e as KeyboardEvent).code); };
-  const clear = (): void => held.clear();
+  const clear = (): void => {
+    held.clear();
+    delta = 0;
+    select = -1;
+  };
   target.addEventListener('keydown', down);
   target.addEventListener('keyup', up);
   target.addEventListener('blur', clear);

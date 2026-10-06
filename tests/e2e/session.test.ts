@@ -42,7 +42,7 @@ const VIEWPORTS = [
 ] as const;
 
 const frame = (v: (typeof VIEWPORTS)[number], orders: boolean): FrameInfo => ({
-  w: v.w, h: v.h, dpr: v.dpr, safe: v.safe, layout: computeLayout(v.w, v.h, v.safe, orders), held: new Set(), showControls: true,
+  w: v.w, h: v.h, dpr: v.dpr, safe: v.safe, layout: computeLayout(v.w, v.h, v.safe, orders), held: new Set(), stick: { active: false, x: 0, y: 0 }, showControls: true,
 });
 
 describe('full pipeline on every map', () => {

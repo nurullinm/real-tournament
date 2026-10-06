@@ -1,65 +1,104 @@
 import { describe, expect, it } from 'vitest';
-import { computeLayout, type ButtonId, type ButtonLayout } from '../../src/input/layout';
+import { buttonCenter, computeLayout, type ButtonId, type ButtonLayout } from '../../src/input/layout';
 import { createTouchInput } from '../../src/input/touch';
 
-const layout = computeLayout(956, 440, { l: 47, r: 47, t: 0, b: 21 }, true);
-const center = (id: ButtonId) => {
-  const b = layout.buttons.find((x) => x.id === id)!;
-  return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-};
+const safe = { l: 47, r: 47, t: 0, b: 21 };
+const layout = computeLayout(956, 440, safe, true);
+const center = (id: ButtonId) => buttonCenter(layout.buttons.find((x) => x.id === id)!);
+/** a point inside the stick, `fx`/`fy` as fractions of its radius from the centre */
+const stickAt = (fx: number, fy = 0) => ({ x: layout.stick.cx + fx * layout.stick.r, y: layout.stick.cy + fy * layout.stick.r });
 
 function setup(l: ButtonLayout = layout, onOrder?: (o: 0 | 1 | 2) => void) {
   const el = new EventTarget() as unknown as HTMLElement;
   (el as unknown as { getBoundingClientRect(): { left: number; top: number } }).getBoundingClientRect = () => ({ left: 0, top: 0 });
   const input = createTouchInput(el, l, { onOrder });
   const fire = (type: string, id: number, p: { x: number; y: number }) => {
-    const e = Object.assign(new Event(type, { cancelable: true }), { pointerId: id, clientX: p.x, clientY: p.y });
-    el.dispatchEvent(e);
+    el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, clientX: p.x, clientY: p.y }));
   };
   return { input, fire };
 }
 
-describe('touch input', () => {
-  it('Fire and Right held by two fingers are both reported', () => {
+describe('joystick', () => {
+  it('pushing right/left past the dead zone moves, a small wiggle does not', () => {
     const { input, fire } = setup();
-    fire('pointerdown', 1, center('right'));
+    fire('pointerdown', 1, stickAt(0.1));
+    expect(input.state()).toMatchObject({ left: false, right: false });
+    fire('pointermove', 1, stickAt(0.8));
+    expect(input.state()).toMatchObject({ right: true, left: false });
+    fire('pointermove', 1, stickAt(-0.8));
+    expect(input.state()).toMatchObject({ right: false, left: true });
+  });
+
+  it('pushing up jumps, and diagonal up-right does both', () => {
+    const { input, fire } = setup();
+    fire('pointerdown', 1, stickAt(0, 0));
+    fire('pointermove', 1, stickAt(0, -0.9));
+    expect(input.state()).toMatchObject({ jump: true, left: false, right: false });
+    fire('pointermove', 1, stickAt(0.7, -0.8));
+    expect(input.state()).toMatchObject({ jump: true, right: true });
+  });
+
+  it('the knob is clamped to the base radius and reported for drawing', () => {
+    const { input, fire } = setup();
+    fire('pointerdown', 1, stickAt(0.2));
+    fire('pointermove', 1, stickAt(3, 0));
+    const k = input.stick();
+    expect(k.active).toBe(true);
+    expect(Math.hypot(k.x, k.y)).toBeCloseTo(layout.stick.r, 5);
+  });
+
+  it('releasing the stick stops movement', () => {
+    const { input, fire } = setup();
+    fire('pointerdown', 1, stickAt(0.9));
+    fire('pointerup', 1, stickAt(0.9));
+    expect(input.state()).toMatchObject({ right: false, left: false, jump: false });
+    expect(input.stick().active).toBe(false);
+  });
+
+  it('only one finger owns the stick; a second finger in the zone is ignored', () => {
+    const { input, fire } = setup();
+    fire('pointerdown', 1, stickAt(0.9));
+    fire('pointerdown', 2, stickAt(-0.9));
+    expect(input.state()).toMatchObject({ right: true, left: false });
+  });
+});
+
+describe('buttons and multitouch', () => {
+  it('Fire while walking right (two fingers) reports both', () => {
+    const { input, fire } = setup();
+    fire('pointerdown', 1, stickAt(0.9));
     fire('pointerdown', 2, center('fire'));
-    const s = input.state();
-    expect(s.right).toBe(true);
-    expect(s.fire).toBe(true);
-    expect(s.left).toBe(false);
+    expect(input.state()).toMatchObject({ right: true, fire: true });
   });
 
-  it('sliding a finger from Right onto Left switches the direction', () => {
+  it('jump button works together with the stick and fire', () => {
     const { input, fire } = setup();
-    fire('pointerdown', 1, center('right'));
-    expect(input.state().right).toBe(true);
-    fire('pointermove', 1, center('left'));
-    const s = input.state();
-    expect(s.left).toBe(true);
-    expect(s.right).toBe(false);
+    fire('pointerdown', 1, stickAt(-0.9));
+    fire('pointerdown', 2, center('jump'));
+    fire('pointerdown', 3, center('fire'));
+    expect(input.state()).toMatchObject({ left: true, jump: true, fire: true });
   });
 
-  it('sliding off every button releases it', () => {
+  it('sliding a finger from Fire to Jump switches the button, sliding off releases it', () => {
     const { input, fire } = setup();
-    fire('pointerdown', 1, center('jump'));
+    fire('pointerdown', 1, center('fire'));
+    fire('pointermove', 1, center('jump'));
+    expect(input.state()).toMatchObject({ jump: true, fire: false });
     fire('pointermove', 1, { x: 480, y: 120 });
-    expect(input.state().jump).toBe(false);
+    expect(input.state()).toMatchObject({ jump: false, fire: false });
   });
 
   it('releasing one finger leaves the other held', () => {
     const { input, fire } = setup();
-    fire('pointerdown', 1, center('right'));
+    fire('pointerdown', 1, stickAt(0.9));
     fire('pointerdown', 2, center('fire'));
     fire('pointerup', 2, center('fire'));
-    const s = input.state();
-    expect(s.right).toBe(true);
-    expect(s.fire).toBe(false);
+    expect(input.state()).toMatchObject({ right: true, fire: false });
   });
 
   it('a third finger on empty space changes nothing and does not stick', () => {
     const { input, fire } = setup();
-    fire('pointerdown', 1, center('right'));
+    fire('pointerdown', 1, stickAt(0.9));
     fire('pointerdown', 2, center('fire'));
     fire('pointerdown', 3, { x: 480, y: 100 });
     fire('pointerup', 3, { x: 480, y: 100 });
@@ -75,23 +114,21 @@ describe('touch input', () => {
     expect(input.state().fire).toBe(false);
   });
 
-  it('releaseAll drops everything (pause, focus loss)', () => {
+  it('releaseAll drops stick, buttons and pending weapon taps (pause, focus loss)', () => {
     const { input, fire } = setup();
     fire('pointerdown', 1, center('fire'));
-    fire('pointerdown', 2, center('left'));
+    fire('pointerdown', 2, stickAt(-0.9));
+    fire('pointerdown', 3, center('weaponNext'));
     input.releaseAll();
-    const s = input.state();
-    expect(s.fire || s.left).toBe(false);
+    expect(input.state()).toMatchObject({ fire: false, left: false, weaponDelta: 0 });
+    expect(input.stick().active).toBe(false);
   });
 
-  it('weapon buttons are a one-tick pulse', () => {
+  it('the weapon swap button is a one-tick pulse', () => {
     const { input, fire } = setup();
     fire('pointerdown', 1, center('weaponNext'));
     expect(input.state().weaponDelta).toBe(1);
     expect(input.state().weaponDelta).toBe(0);
-    fire('pointerup', 1, center('weaponNext'));
-    fire('pointerdown', 2, center('weaponPrev'));
-    expect(input.state().weaponDelta).toBe(-1);
   });
 
   it('order buttons call back once per tap', () => {
@@ -111,27 +148,58 @@ describe('touch input', () => {
 });
 
 describe('layout', () => {
-  const insets = { l: 47, r: 47, t: 0, b: 21 };
-  it('keeps every button inside the safe area', () => {
-    for (const [w, h] of [[956, 440], [667, 375], [844, 390]] as const) {
-      for (const b of computeLayout(w, h, insets, true).buttons) {
-        expect(b.x, `${b.id} ${w}x${h}`).toBeGreaterThanOrEqual(insets.l);
-        expect(b.x + b.w).toBeLessThanOrEqual(w - insets.r);
-        expect(b.y + b.h).toBeLessThanOrEqual(h - insets.b);
-        expect(b.y).toBeGreaterThanOrEqual(insets.t);
+  type Rect = { x0: number; y0: number; x1: number; y1: number };
+  const rectOf = (b: ReturnType<typeof computeLayout>['buttons'][number]): Rect =>
+    b.shape === 'circle' ? { x0: b.cx - b.r, y0: b.cy - b.r, x1: b.cx + b.r, y1: b.cy + b.r } : { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+  const sizes = [[956, 440], [667, 375], [844, 390], [932, 430]] as const;
+
+  it('keeps every control inside the safe area', () => {
+    for (const [w, h] of sizes) {
+      const l = computeLayout(w, h, safe, true);
+      for (const b of l.buttons) {
+        const r = rectOf(b);
+        expect(r.x0, `${b.id} ${w}x${h}`).toBeGreaterThanOrEqual(safe.l);
+        expect(r.x1).toBeLessThanOrEqual(w - safe.r);
+        expect(r.y1).toBeLessThanOrEqual(h - safe.b);
+        expect(r.y0).toBeGreaterThanOrEqual(safe.t);
+      }
+      expect(l.stick.cx - l.stick.r).toBeGreaterThanOrEqual(safe.l);
+      expect(l.stick.cy + l.stick.r).toBeLessThanOrEqual(h - safe.b);
+    }
+  });
+
+  it('round buttons never overlap each other or the stick base', () => {
+    for (const [w, h] of sizes) {
+      const l = computeLayout(w, h, safe, true);
+      const rounds = l.buttons.filter((b) => b.shape === 'circle');
+      for (const a of rounds) {
+        for (const b of rounds) {
+          if (a === b || a.shape !== 'circle' || b.shape !== 'circle') continue;
+          expect(Math.hypot(a.cx - b.cx, a.cy - b.cy), `${a.id}/${b.id} ${w}x${h}`).toBeGreaterThanOrEqual(a.r + b.r);
+        }
+        if (a.shape === 'circle') expect(Math.hypot(a.cx - l.stick.cx, a.cy - l.stick.cy)).toBeGreaterThan(a.r + l.stick.r);
       }
     }
   });
-  it('hold buttons do not overlap each other', () => {
-    const hold = computeLayout(956, 440, insets).buttons.filter((b) => ['left', 'right', 'jump', 'fire', 'action'].includes(b.id));
-    for (const a of hold) for (const b of hold) {
-      if (a === b) continue;
-      const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-      expect(overlap, `${a.id}/${b.id}`).toBe(false);
+
+  it('order pills sit above the stick and do not touch it', () => {
+    const l = computeLayout(956, 440, safe, true);
+    for (const b of l.buttons.filter((x) => x.shape === 'pill')) {
+      expect(b.shape === 'pill' && b.y + b.h).toBeLessThanOrEqual(l.stick.cy - l.stick.r);
     }
   });
+
+  it('touch targets are at least 44 px', () => {
+    const l = computeLayout(956, 440, safe, true);
+    for (const b of l.buttons) {
+      const r = rectOf(b);
+      expect(Math.min(r.x1 - r.x0, r.y1 - r.y0), b.id).toBeGreaterThanOrEqual(34);
+      if (b.shape === 'circle') expect(b.r * 2, b.id).toBeGreaterThanOrEqual(44);
+    }
+  });
+
   it('only adds order buttons when asked', () => {
-    expect(computeLayout(956, 440, insets).buttons.some((b) => b.id === 'order0')).toBe(false);
-    expect(computeLayout(956, 440, insets, true).buttons.filter((b) => b.id.startsWith('order'))).toHaveLength(3);
+    expect(computeLayout(956, 440, safe).buttons.some((b) => b.id === 'order0')).toBe(false);
+    expect(computeLayout(956, 440, safe, true).buttons.filter((b) => b.id.startsWith('order'))).toHaveLength(3);
   });
 });

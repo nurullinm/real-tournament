@@ -71,7 +71,7 @@ async function boot(): Promise<void> {
     else resumePlay();
   };
 
-  const frameInfo = (): FrameInfo => ({ ...css, safe, layout, held: touch.held(), showControls: true });
+  const frameInfo = (): FrameInfo => ({ ...css, safe, layout, held: touch.held(), stick: touch.stick(), showControls: true });
 
   const tickOnce = (): void => {
     if (!session) return;

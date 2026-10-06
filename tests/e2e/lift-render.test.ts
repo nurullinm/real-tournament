@@ -13,7 +13,7 @@ vi.mock('../../src/render/fighters', () => ({ drawActors: (_ctx: unknown, m: unk
 const img = {} as ImageBitmap;
 const sprites = { tiles: img, energy: img, sheets: [img, img, img, img], chars: loadCharsFromDisk('public/original') } as unknown as Sprites;
 const safe = { l: 0, r: 0, t: 0, b: 0 };
-const info: FrameInfo = { w: 956, h: 440, dpr: 2, safe, layout: computeLayout(956, 440, safe), held: new Set(), showControls: false };
+const info: FrameInfo = { w: 956, h: 440, dpr: 2, safe, layout: computeLayout(956, 440, safe), held: new Set(), stick: { active: false, x: 0, y: 0 }, showControls: false };
 const ctx = new Proxy({ canvas: { width: 1912, height: 880 } }, {
   get: (t, name: string) => (name in t ? (t as Record<string, unknown>)[name] : () => {}),
   set: () => true,

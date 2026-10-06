@@ -6,6 +6,7 @@ import { botHooks, setAllyOrder, type AllyOrder } from '../bots';
 import { createMatch, matchResult, step, type MatchResult } from '../engine/match';
 import type { EngineAssets, InputState, Match, MatchOptions } from '../engine/types';
 import type { ButtonLayout, ButtonId, Insets } from '../input/layout';
+import type { StickState } from '../input/touch';
 import type { Platform } from '../platform/telegram';
 import { cameraTarget, computeCamera, followCamera, type Point } from '../render/camera';
 import { Effects } from '../render/effects';
@@ -35,6 +36,7 @@ export interface FrameInfo {
   safe: Insets;
   layout: ButtonLayout;
   held: ReadonlySet<ButtonId>;
+  stick: StickState;
   showControls: boolean;
 }
 
@@ -154,6 +156,6 @@ export class GameSession {
       m.projectiles.forEach((p, i) => { p.x = savedProj[i]!; });
     }
     drawHud(ctx, m, 0, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
-    if (f.showControls) drawControls(ctx, f.layout, f.held, f.dpr);
+    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr);
   }
 }

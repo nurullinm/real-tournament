@@ -1,5 +1,5 @@
-import type { ButtonLayout, ButtonId } from '../input/layout';
-import type { Insets } from '../input/layout';
+import type { ButtonId, ButtonLayout, Insets } from '../input/layout';
+import type { StickState } from '../input/touch';
 import type { Match } from '../engine/types';
 
 export interface Viewport {
@@ -72,27 +72,76 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
   }
 }
 
-const LABELS: Record<ButtonId, string> = {
-  left: '◀', right: '▶', jump: '▲', fire: '●', action: '⇅', weaponPrev: '‹', weaponNext: '›',
-  order0: 'DEFEND', order1: 'ATTACK', order2: 'FREE',
-};
+const ORDER_LABELS: Record<string, string> = { order0: 'DEFEND', order1: 'ATTACK', order2: 'FREE' };
 
-/** Translucent on-screen controls; pressed buttons light up. */
-export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout, held: ReadonlySet<ButtonId>, dpr: number): void {
+function circle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, fill: string, stroke?: string, lw = 2): void {
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  }
+}
+
+/** Translucent shooter controls: joystick with a knob, round action buttons on an arc, small pills for ally orders. */
+export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout, held: ReadonlySet<ButtonId>, stick: StickState, dpr: number): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const s = layout.stick;
+  circle(ctx, s.cx, s.cy, s.r, 'rgba(255,255,255,0.09)', 'rgba(255,255,255,0.32)');
+  circle(ctx, s.cx, s.cy, s.r * 0.58, 'rgba(255,255,255,0)', 'rgba(255,255,255,0.12)', 1.5);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = `700 ${Math.round(s.r * 0.26)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.fillText('◀', s.cx - s.r * 0.78, s.cy);
+  ctx.fillText('▶', s.cx + s.r * 0.78, s.cy);
+  ctx.fillText('▲', s.cx, s.cy - s.r * 0.78);
+  circle(ctx, s.cx + stick.x, s.cy + stick.y, s.knobR, stick.active ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.26)', 'rgba(255,255,255,0.75)');
+
   for (const b of layout.buttons) {
     const on = held.has(b.id);
-    ctx.fillStyle = on ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.18)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(b.x, b.y, b.w, b.h, Math.min(b.w, b.h) / 2.4);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = `700 ${Math.round(Math.min(b.w, b.h) * (b.id.startsWith('order') ? 0.28 : 0.42))}px system-ui, sans-serif`;
-    ctx.fillText(LABELS[b.id], b.x + b.w / 2, b.y + b.h / 2);
+    const fill = on ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.16)';
+    if (b.shape === 'pill') {
+      ctx.beginPath();
+      ctx.roundRect(b.x, b.y, b.w, b.h, b.h / 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = `700 ${Math.round(b.h * 0.34)}px system-ui, sans-serif`;
+      ctx.fillText(ORDER_LABELS[b.id] ?? '', b.x + b.w / 2, b.y + b.h / 2);
+      continue;
+    }
+    circle(ctx, b.cx, b.cy, b.r, fill, 'rgba(255,255,255,0.55)');
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = Math.max(2, b.r * 0.1);
+    ctx.lineCap = 'round';
+    switch (b.id) {
+      case 'fire':
+        circle(ctx, b.cx, b.cy, b.r * 0.5, 'rgba(255,255,255,0)', 'rgba(255,255,255,0.92)');
+        circle(ctx, b.cx, b.cy, b.r * 0.2, 'rgba(255,255,255,0.92)');
+        break;
+      case 'jump':
+        ctx.beginPath();
+        ctx.moveTo(b.cx - b.r * 0.4, b.cy + b.r * 0.2);
+        ctx.lineTo(b.cx, b.cy - b.r * 0.25);
+        ctx.lineTo(b.cx + b.r * 0.4, b.cy + b.r * 0.2);
+        ctx.stroke();
+        break;
+      case 'action':
+        ctx.font = `700 ${Math.round(b.r * 0.9)}px system-ui, sans-serif`;
+        ctx.fillText('⇅', b.cx, b.cy + 1);
+        break;
+      case 'weaponNext':
+        ctx.font = `700 ${Math.round(b.r * 1.0)}px system-ui, sans-serif`;
+        ctx.fillText('⇄', b.cx, b.cy + 1);
+        break;
+    }
   }
 }

@@ -79,8 +79,19 @@ describe('controls', () => {
   it('draws every button and lights up pressed ones', () => {
     const layout = computeLayout(956, 440, safe, true);
     const idle = mockCtx();
-    drawControls(idle.ctx, layout, new Set(), 3);
-    expect(idle.calls.filter((c) => c.name === 'roundRect')).toHaveLength(layout.buttons.length);
+    drawControls(idle.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 3);
+    const arcs = idle.calls.filter((c) => c.name === 'arc').length;
+    const pills = idle.calls.filter((c) => c.name === 'roundRect').length;
+    const rounds = layout.buttons.filter((b) => b.shape === 'circle').length;
+    expect(pills).toBe(layout.buttons.filter((b) => b.shape === 'pill').length);
+    expect(arcs).toBeGreaterThanOrEqual(rounds + 3); // buttons + stick base, inner ring and knob
+  });
+  it('moves the knob with the stick and brightens it while held', () => {
+    const layout = computeLayout(956, 440, safe, false);
+    const a = mockCtx();
+    drawControls(a.ctx, layout, new Set(), { active: true, x: 30, y: -10 }, 2);
+    const knob = a.calls.filter((c) => c.name === 'arc').find((c) => c.args[0] === layout.stick.cx + 30 && c.args[1] === layout.stick.cy - 10);
+    expect(knob).toBeDefined();
   });
 });
 
