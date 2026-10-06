@@ -167,6 +167,7 @@ async function boot(): Promise<void> {
     lockstep = new Lockstep(m.humans);
     online = true;
     lastCmd = 0;
+    lastTickAt = performance.now();
     session = new GameSession(opts, m.seed, { sprites, audio, platform, assets, maps }, m.slot, m.names);
     audio.playMusic(musicForMap(opts.mapId));
     ui.hide();
@@ -185,24 +186,36 @@ async function boot(): Promise<void> {
     return input;
   }
 
-  const tickOnce = (): void => {
-    if (!session) return;
-    if (online && lockstep) {
-      sendInput();
-      // after a stall (background, slow network) catch up faster than real time
-      const n = lockstep.backlog > 4 ? Math.min(lockstep.backlog - 2, 12) : 1;
-      for (let i = 0; i < n; i++) {
-        const nt = lockstep.pull();
-        if (!nt) break;
-        session.tickNet(nt);
-        if (session.result.over) { net?.send({ t: 'over' }); finishMatch(); return; }
-      }
-      return;
+  /**
+   * Online play runs off the network, not the local 60 ms clock: input is sampled and sent every frame (not once per
+   * tick), and a server tick is simulated the moment it has arrived. That removes two waits of up to a tick each.
+   */
+  let lastTickAt = 0;
+  const pumpNet = (): void => {
+    if (!session || !lockstep || !online) return;
+    sendInput();
+    // after a stall (background, slow network) catch up faster than real time
+    const n = lockstep.backlog > 4 ? Math.min(lockstep.backlog - 2, 12) : lockstep.backlog;
+    for (let i = 0; i < n; i++) {
+      const nt = lockstep.pull();
+      if (!nt) break;
+      session.tickNet(nt);
+      lastTickAt = performance.now();
+      if (session.result.over) { net?.send({ t: 'over' }); finishMatch(); return; }
     }
+  };
+
+  const tickOnce = (): void => {
+    if (!session || online) return; // online ticks come from pumpNet
     session.tick(mergeInputs(touch.state(), keyboard.state()));
     if (session.result.over) finishMatch();
   };
-  const renderFrame = (alpha: number): void => {
+  const renderFrame = (localAlpha: number): void => {
+    let alpha = localAlpha;
+    if (online) {
+      pumpNet();
+      alpha = Math.min(1, (performance.now() - lastTickAt) / (1000 / 16.667));
+    }
     if (session) session.draw(ctx, frameInfo(), alpha);
     else {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
