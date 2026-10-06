@@ -1,6 +1,6 @@
 import { verifyInitData } from './auth';
 import {
-  CODE_LENGTH, MAX_PLAYERS, NET_TICK_MS, clampConfig, cleanName, DEFAULT_CONFIG,
+  CODE_LENGTH, MAX_PLAYERS, NET_TICK_MS, TEAM_SIZE, assignFighters, clampConfig, cleanName, DEFAULT_CONFIG,
   type ClientMsg, type RoomConfig, type ServerMsg, type WireInput,
 } from '../src/net/protocol';
 
@@ -8,7 +8,7 @@ interface Env { ROOMS: DurableObjectNamespace; BOT_TOKEN?: string; ALLOWED_ORIGI
 
 const idle = (): WireInput => ({ c: 0, ws: -1, wd: 0 });
 
-interface Player { slot: number; name: string; color: number; ws: WebSocket; host: boolean; held: number; ws_: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; alive: boolean }
+interface Player { slot: number; name: string; color: number; team: number; ws: WebSocket; host: boolean; held: number; ws_: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; alive: boolean }
 
 export class Room {
   private players = new Map<number, Player>();
@@ -17,7 +17,6 @@ export class Room {
   private tick = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private pendingDrops: number[] = [];
-  private humans = 0;
 
   constructor(_state: DurableObjectState, private env: Env) {}
 
@@ -36,7 +35,7 @@ export class Room {
   private lobby(): void {
     this.broadcast({
       t: 'lobby', cfg: this.cfg,
-      players: [...this.players.values()].filter((p) => p.alive).map((p) => ({ slot: p.slot, name: p.name, host: p.host, color: p.color })),
+      players: [...this.players.values()].filter((p) => p.alive).map((p) => ({ slot: p.slot, name: p.name, host: p.host, color: p.color, team: p.team })),
     });
   }
 
@@ -62,7 +61,10 @@ export class Room {
         const slot = [...Array(MAX_PLAYERS).keys()].find((s) => !this.players.get(s)?.alive)!;
         const taken = new Set(live.map((p) => p.color));
         const color = [0, 1, 2, 3].find((c) => !taken.has(c)) ?? 0;
-        me = { slot, name, color, ws, host: live.length === 0, held: 0, ws_: -1, wd: 0, alive: true };
+        // CTF: the team with fewer players (blue first)
+        const inTeam1 = live.filter((p) => p.team === 1).length;
+        const team = live.length - inTeam1 > inTeam1 ? 1 : 0;
+        me = { slot, name, color, team, ws, host: live.length === 0, held: 0, ws_: -1, wd: 0, alive: true };
         this.players.set(slot, me);
         this.cfg = clampConfig(this.cfg, live.length + 1);
         this.send(ws, { t: 'welcome', slot, code: '' });
@@ -78,6 +80,13 @@ export class Room {
           if (!this.started && Number.isInteger(msg.color) && msg.color >= 0 && msg.color <= 3
             && ![...this.players.values()].some((p) => p.alive && p !== me && p.color === msg.color)) {
             me.color = msg.color;
+            this.lobby();
+          }
+          break;
+        case 'team':
+          if (!this.started && (msg.team === 0 || msg.team === 1)
+            && [...this.players.values()].filter((p) => p.alive && p !== me && p.team === msg.team).length < TEAM_SIZE) {
+            me.team = msg.team;
             this.lobby();
           }
           break;
@@ -113,25 +122,28 @@ export class Room {
   }
 
   private begin(): void {
-    // humans keep their slot numbers; compact them to 0..n-1 so engine fighters 0..humans-1 are the humans
     const live = [...this.players.values()].filter((p) => p.alive).sort((a, b) => a.slot - b.slot);
+    this.cfg = clampConfig(this.cfg, live.length);
+    // every human gets a fighter number (DM: join order; CTF: blue team 0-1, red team 2-3) and keeps it for the match
+    const fighters = assignFighters(this.cfg.mode, live);
+    if (!fighters) return; // a team is over-full: the host fixes the teams first
     this.players.clear();
-    live.forEach((p, i) => { p.slot = i; this.players.set(i, p); });
-    this.humans = live.length;
-    this.cfg = clampConfig(this.cfg, this.humans);
+    live.forEach((p, i) => { p.slot = fighters[i]!; this.players.set(p.slot, p); });
     this.started = true;
     this.tick = 0;
     const seed = (crypto.getRandomValues(new Uint32Array(1))[0]! >>> 0) || 1;
-    const names = live.map((p) => p.name);
-    const colors = live.map((p) => p.color);
-    for (const p of live) this.send(p.ws, { t: 'start', seed, cfg: this.cfg, humans: this.humans, names, colors, slot: p.slot });
+    const names = ['', '', '', ''];
+    const colors = [0, 1, 2, 3];
+    for (const p of live) { names[p.slot] = p.name; colors[p.slot] = p.color; }
+    const humanSlots = live.map((p) => p.slot);
+    for (const p of live) this.send(p.ws, { t: 'start', seed, cfg: this.cfg, humanSlots, names, colors, slot: p.slot });
     this.timer = setInterval(() => this.step(), NET_TICK_MS);
   }
 
   private step(): void {
     this.tick++;
     const i: WireInput[] = [];
-    for (let s = 0; s < this.humans; s++) {
+    for (let s = 0; s < MAX_PLAYERS; s++) {
       const p = this.players.get(s);
       if (!p || !p.alive) { i.push(idle()); continue; }
       i.push({ c: p.held, ws: p.ws_, wd: p.wd });

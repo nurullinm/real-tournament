@@ -136,7 +136,7 @@ export class GameSession {
     ctx.lineJoin = 'round';
     this.names.forEach((name, slot) => {
       const f = this.match.fighters[slot];
-      if (!f || slot === this.localSlot || f.hp <= 0) return;
+      if (!name || !f || slot === this.localSlot || f.hp <= 0) return;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
       ctx.strokeText(name, f.x, f.y - 38);
       ctx.fillStyle = '#fff';
@@ -159,7 +159,7 @@ export class GameSession {
   }
 
   get canOrderAlly(): boolean {
-    return this.match.gameMode === 1 && this.match.numFighters >= 4;
+    return this.match.gameMode === 1 && this.match.numFighters >= 4 && this.names.length === 0;
   }
 
   /** Renders the current state; `alpha` interpolates between the previous and current tick. */

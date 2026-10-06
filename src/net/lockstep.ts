@@ -21,8 +21,9 @@ export class Lockstep {
   /** humans that are still player-controlled */
   private live: Set<number>;
 
-  constructor(humans: number) {
-    this.live = new Set(Array.from({ length: humans }, (_, i) => i));
+  /** `slots`: the fighter numbers controlled by people */
+  constructor(slots: number[]) {
+    this.live = new Set(slots);
   }
 
   /** Feeds a server tick message; out-of-order or duplicate ticks are ignored. */

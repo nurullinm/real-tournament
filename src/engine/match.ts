@@ -16,7 +16,7 @@ export function createMatch(opts: MatchOptions, map: GameMap, seed: number, asse
   const m = buildBaseMatch(opts, map, seed, assets);
   if (ai) m.ai = ai;
   const humans = Math.max(1, opts.humans ?? 1);
-  m.fighters.forEach((f, i) => { f.human = i < humans; });
+  m.fighters.forEach((f, i) => { f.human = opts.humanSlots ? opts.humanSlots.includes(i) : i < humans; });
   if (opts.mode === 'dm') setupDeathmatch(m);
   else setupCtf(m);
   m.fighters.forEach((f) => { f.skin = skinFor(m, f); });

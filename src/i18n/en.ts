@@ -157,6 +157,13 @@ export const en = {
   'mp.level.0': 'Easy',
   'mp.level.1': 'Medium',
   'mp.level.2': 'Hard',
+  'mp.tab.players': 'Players',
+  'mp.tab.settings': 'Settings',
+  'mp.l.mode': 'Mode',
+  'mp.l.caps': 'Captures',
+  'mp.team.blue': 'Blue',
+  'mp.team.red': 'Red',
+  'mp.ctfbots': '2 vs 2: bots fill the empty places.',
 } as const;
 
 export type Key = keyof typeof en;

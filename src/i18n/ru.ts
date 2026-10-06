@@ -158,4 +158,11 @@ export const ru: Record<Key, string> = {
   'mp.level.0': 'Лёгкие',
   'mp.level.1': 'Средние',
   'mp.level.2': 'Сложные',
+  'mp.tab.players': 'Игроки',
+  'mp.tab.settings': 'Настройки',
+  'mp.l.mode': 'Режим',
+  'mp.l.caps': 'Захваты',
+  'mp.team.blue': 'Синие',
+  'mp.team.red': 'Красные',
+  'mp.ctfbots': '2 на 2: свободные места займут боты.',
 };

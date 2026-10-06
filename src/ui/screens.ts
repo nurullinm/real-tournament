@@ -3,7 +3,7 @@ import type { Match } from '../engine/types';
 import { botName, colorName, ctfMapName, dmMapName, onLangChange, orderLabel, skillName, t, type LangPref } from '../i18n';
 import { scoreboard, type ScoreRow } from '../game/stats';
 import { clear, h } from './dom';
-import { cleanName, CODE_LENGTH, MAX_PLAYERS, NAME_MAX, normalizeCode, type LobbyPlayer, type RoomConfig } from '../net/protocol';
+import { cleanName, CODE_LENGTH, MAX_PLAYERS, NAME_MAX, TEAM_SIZE, normalizeCode, type LobbyPlayer, type RoomConfig } from '../net/protocol';
 import { cycle, type GameSettings } from './settings';
 
 export interface UiHandlers {
@@ -21,6 +21,7 @@ export interface UiHandlers {
   mpLeave(): void;
   mpConfig(cfg: RoomConfig): void;
   mpColor(color: number): void;
+  mpTeam(team: number): void;
   mpStart(): void;
 }
 
@@ -266,32 +267,73 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     open(menu);
   }
 
+  /** which tab of the lobby is open (it survives the lobby re-drawing on every server message) */
+  let lobbyTab: 'players' | 'settings' = 'players';
+
   function lobbyScreen(v: LobbyView): void {
     clear(menu);
-    const players = h('div', { class: 'pgrid' });
-    for (const p of v.players) {
-      players.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
-        h('span', { class: 'dot', style: `background:${SIDE_CSS[p.color] ?? '#fff'}` }),
-        h('span', { class: 'pname', text: p.name }),
-        h('span', { class: 'ptag', text: p.host ? '★' : '' })));
-    }
-    const mine = v.players.find((p) => p.slot === v.slot)?.color ?? 0;
-    const swatches = h('div', { class: 'swatches' });
-    for (let c = 0; c < SIDE_CSS.length; c++) {
-      const takenBy = v.players.some((p) => p.slot !== v.slot && p.color === c);
-      swatches.append(h('button', {
-        class: `swatch${c === mine ? ' on' : ''}`, style: `background:${SIDE_CSS[c]}`, 'aria-label': colorName(c),
-        disabled: takenBy || undefined, onclick: () => handlers.mpColor(c),
-      }));
-    }
     const cfg = v.cfg;
+    const ctf = cfg.mode === 'ctf';
     const none = (n: number): string => (n === 0 ? t('common.none') : String(n));
-    const body: HTMLElement[] = [
-      h('div', { class: 'coderow' }, h('div', { class: 'code-big', text: v.code }), button(t('mp.share'), () => shareRoom(v.code), 'chip')),
-      players,
-      h('div', { class: 'colorrow' }, h('div', { class: 'plabel', text: t('mp.vest') }), swatches),
-    ];
+    const me = v.players.find((p) => p.slot === v.slot);
+    const tab: 'players' | 'settings' = v.host ? lobbyTab : 'players';
+
+    const body: HTMLElement[] = [];
     if (v.host) {
+      const tabs = h('div', { class: 'tabs lobby-tabs' });
+      for (const [id, label] of [['players', t('mp.tab.players')], ['settings', t('mp.tab.settings')]] as const) {
+        tabs.append(button(label, () => { lobbyTab = id; lobbyScreen(v); }, `chip${tab === id ? ' hot' : ''}`));
+      }
+      body.push(tabs);
+    }
+
+    if (tab === 'players') {
+      const dotColor = (p: LobbyPlayer): string => SIDE_CSS[ctf ? p.team : p.color] ?? '#fff';
+      const players = h('div', { class: 'pgrid' });
+      for (const p of v.players) {
+        players.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
+          h('span', { class: 'dot', style: `background:${dotColor(p)}` }),
+          h('span', { class: 'pname', text: p.name }),
+          h('span', { class: 'ptag', text: p.host ? '★' : '' })));
+      }
+      body.push(
+        h('div', { class: 'coderow' }, h('div', { class: 'code-big', text: v.code }), button(t('mp.share'), () => shareRoom(v.code), 'chip')),
+        h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }),
+        players,
+      );
+      if (ctf) {
+        // two teams of two: pick one (a full team is disabled)
+        const teamRow = h('div', { class: 'teamrow' });
+        for (const team of [0, 1]) {
+          const count = v.players.filter((p) => p.team === team).length;
+          const label = `${team === 0 ? t('mp.team.blue') : t('mp.team.red')} ${count}/${TEAM_SIZE}`;
+          teamRow.append(h('button', {
+            class: `btn team t${team}${me?.team === team ? ' on' : ''}`, text: label,
+            disabled: (count >= TEAM_SIZE && me?.team !== team) || undefined, onclick: () => handlers.mpTeam(team),
+          }));
+        }
+        body.push(teamRow);
+      } else {
+        const mine = me?.color ?? 0;
+        const swatches = h('div', { class: 'swatches' });
+        for (let c = 0; c < SIDE_CSS.length; c++) {
+          const takenBy = v.players.some((p) => p.slot !== v.slot && p.color === c);
+          swatches.append(h('button', {
+            class: `swatch${c === mine ? ' on' : ''}`, style: `background:${SIDE_CSS[c]}`, 'aria-label': colorName(c),
+            disabled: takenBy || undefined, onclick: () => handlers.mpColor(c),
+          }));
+        }
+        body.push(h('div', { class: 'colorrow' }, h('div', { class: 'plabel', text: t('mp.vest') }), swatches));
+      }
+      if (!v.host) {
+        const line = (k: string, val: string): HTMLElement => h('div', { class: 'kv' }, h('span', { text: k }), h('b', { text: val }));
+        body.push(
+          line(t('mp.l.mode'), ctf ? t('menu.ctf') : t('menu.dm')),
+          line(t('mp.l.map'), ctf ? ctfMapName(cfg.mapId) : dmMapName(cfg.mapId)),
+          h('div', { class: 'help', text: t('mp.wait') }),
+        );
+      }
+    } else {
       const push = (patch: Partial<RoomConfig>): void => { handlers.mpConfig({ ...cfg, ...patch }); };
       const row = (label: string, value: string, change: (d: -1 | 1) => void): HTMLElement => h('div', { class: 'row' },
         h('div', { class: 'label', text: label }),
@@ -300,21 +342,23 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         h('button', { class: 'btn arrow', text: '▶', onclick: () => change(1) }));
       const minBots = v.players.length <= 1 ? 1 : 0;
       const maxBots = MAX_PLAYERS - v.players.length;
-      body.push(
-        row(t('mp.l.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
-        row(t('mp.l.bots'), String(cfg.bots), (d) => push({ bots: minBots + cycle(cfg.bots - minBots, d, maxBots - minBots + 1) })),
-        row(t('mp.l.skill'), levelName(cfg.skill), (d) => push({ skill: BOT_LEVELS[cycle(levelIndex(cfg.skill), d, BOT_LEVELS.length)] as RoomConfig['skill'] })),
-        row(t('mp.l.frags'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
-      );
-    } else {
-      const line = (k: string, val: string): HTMLElement => h('div', { class: 'kv' }, h('span', { text: k }), h('b', { text: val }));
-      body.push(
-        line(t('mp.l.map'), dmMapName(cfg.mapId)),
-        line(t('mp.l.bots'), String(cfg.bots)),
-        line(t('mp.l.skill'), levelName(cfg.skill)),
-        line(t('mp.l.frags'), none(cfg.fragLimit)),
-        h('div', { class: 'help', text: t('mp.wait') }),
-      );
+      const level = row(t('mp.l.skill'), levelName(cfg.skill), (d) => push({ skill: BOT_LEVELS[cycle(levelIndex(cfg.skill), d, BOT_LEVELS.length)] as RoomConfig['skill'] }));
+      body.push(row(t('mp.l.mode'), ctf ? t('menu.ctf') : t('menu.dm'), () => push(ctf ? { mode: 'dm', mapId: 0, fragLimit: 10 } : { mode: 'ctf', mapId: 0, fragLimit: 3 })));
+      if (ctf) {
+        body.push(
+          row(t('mp.l.map'), ctfMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 5) })),
+          level,
+          row(t('mp.l.caps'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit, d, 10) })),
+          h('div', { class: 'help', text: t('mp.ctfbots') }),
+        );
+      } else {
+        body.push(
+          row(t('mp.l.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
+          row(t('mp.l.bots'), String(cfg.bots), (d) => push({ bots: minBots + cycle(cfg.bots - minBots, d, maxBots - minBots + 1) })),
+          level,
+          row(t('mp.l.frags'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 11) * 5 })),
+        );
+      }
     }
     menu.append(win({
       title: t('mp.title'),
@@ -415,8 +459,8 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       rows.sort((a, b) => b.score - a.score);
       const grid = h('div', { class: 'scores' });
       rows.forEach((r, i) => {
-        const name = m.gameMode === 1 ? (r.color === 0 ? t('result.blue') : t('result.red')) : (online?.names[r.side] ?? colorName(r.color));
-        const you = r.side === (online?.slot ?? 0) ? ` ${t('result.you')}` : '';
+        const name = m.gameMode === 1 ? (r.color === 0 ? t('result.blue') : t('result.red')) : (online?.names[r.side] || colorName(r.color));
+        const you = r.side === (online ? m.fighters[online.slot]?.side ?? 0 : 0) ? ` ${t('result.you')}` : '';
         const cls = i === 0 ? 'first' : '';
         grid.append(
           h('div', { class: cls }, h('span', { class: 'dot', style: `background:${SIDE_CSS[r.color] ?? '#fff'}` }), h('span', { text: `${name}${you}` })),

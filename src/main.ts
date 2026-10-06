@@ -158,13 +158,14 @@ async function boot(): Promise<void> {
       },
     });
   }
-  function startOnline(m: { seed: number; cfg: RoomConfig; humans: number; names: string[]; colors: number[]; slot: number }): void {
-    const opts = {
-      mapId: m.cfg.mapId, mode: 'dm' as const, skill: m.cfg.skill, bots: m.humans + m.cfg.bots - 1, fragLimit: m.cfg.fragLimit,
-      noMedikits: m.cfg.noMedikits, violence: settings.violence, team: false, playerColor: m.colors[0] ?? 0, humans: m.humans, humanColors: m.colors,
-    };
+  function startOnline(m: { seed: number; cfg: RoomConfig; humanSlots: number[]; names: string[]; colors: number[]; slot: number }): void {
+    const common = { skill: m.cfg.skill, noMedikits: m.cfg.noMedikits, violence: settings.violence, humanSlots: m.humanSlots };
+    const opts = m.cfg.mode === 'ctf'
+      // CTF is always 2v2: team 0 (blue) is fighters 0-1, team 1 (red) fighters 2-3, bots take the empty places
+      ? { ...common, mapId: 7 + m.cfg.mapId, mode: 'ctf' as const, bots: 0, fragLimit: m.cfg.fragLimit, team: true, playerColor: 0 }
+      : { ...common, mapId: m.cfg.mapId, mode: 'dm' as const, bots: m.humanSlots.length + m.cfg.bots - 1, fragLimit: m.cfg.fragLimit, team: false, playerColor: m.colors[0] ?? 0, humanColors: m.humanSlots.map((s) => m.colors[s] ?? 0) };
     mySlot = m.slot;
-    lockstep = new Lockstep(m.humans);
+    lockstep = new Lockstep(m.humanSlots);
     online = true;
     lastCmd = 0;
     lastTickAt = performance.now();
@@ -301,6 +302,7 @@ async function boot(): Promise<void> {
     mpLeave: () => { leaveRoom(); ui.showMultiplayer(); },
     mpConfig: (cfg) => net?.send({ t: 'cfg', cfg }),
     mpColor: (color) => net?.send({ t: 'color', color }),
+    mpTeam: (team) => net?.send({ t: 'team', team }),
     mpStart: () => net?.send({ t: 'start' }),
   });
 

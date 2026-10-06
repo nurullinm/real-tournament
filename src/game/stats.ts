@@ -26,7 +26,7 @@ export function scoreboard(m: Match, localSlot = 0, names: string[] = []): Score
     const online = names.length > 0;
     const name = i === localSlot ? (online ? names[i] ?? t('hud.you') : t('hud.you'))
       : f.human && names[i] ? names[i]!
-      : m.gameMode === 1 ? (f.side === m.fighters[localSlot]!.side ? t('hud.ally') : t('hud.enemy'))
+      : m.gameMode === 1 && !online ? (f.side === m.fighters[localSlot]!.side ? t('hud.ally') : t('hud.enemy'))
       : online || m.numFighters > 2 ? t('mp.bot', { n: ++bot }) : t('hud.enemy');
     rows.push({ name, color: f.color, kills: f.frags, deaths: f.deaths, you: i === localSlot });
   }

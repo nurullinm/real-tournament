@@ -146,6 +146,8 @@ export interface MatchOptions {
   playerColor: number;
   /** number of human-controlled fighters (slots 0..humans-1); default 1. DM: bots + 1 is the total fighter count */
   humans?: number;
+  /** explicit fighter numbers that are human-controlled (online CTF puts humans on both teams); overrides `humans` */
+  humanSlots?: number[];
   /** vest colour per human slot (online); bots take the remaining colours */
   humanColors?: number[];
 }
