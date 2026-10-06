@@ -1,13 +1,9 @@
+import type { LangPref } from '../i18n';
 import type { MatchOptions } from '../engine/types';
-
-export const SKILL_NAMES = ['Very easy', 'Easy', 'Normal', 'Hard', 'Very hard'] as const;
-export const COLOR_NAMES = ['Blue', 'Red', 'Green', 'Yellow'] as const;
-export const DM_MAP_NAMES = ['1. Two floors', '2. King of the hill', '3. Stowaways', '4. Island of freedom', '5. Cycle-drome', '6. Skyscraper', '7. No place to hide'] as const;
-export const CTF_MAP_NAMES = ['1. Saboteurs', '2. Chaos and order', '3. Two towers', '4. Technopark', '5. Major road'] as const;
-export const BOT_NAMES = ['None', '1', '2', '3'] as const;
 
 /** Defaults and ranges follow the original's option table (opt_options). */
 export interface GameSettings {
+  language: LangPref;
   sound: boolean;
   violence: boolean;
   dm: { map: number; skill: number; bots: number; fragStep: number; color: number; noMedikits: boolean };
@@ -15,6 +11,7 @@ export interface GameSettings {
 }
 
 export const defaultSettings = (): GameSettings => ({
+  language: 'auto',
   sound: true,
   violence: true,
   dm: { map: 0, skill: 2, bots: 1, fragStep: 0, color: 0, noMedikits: false },
@@ -29,10 +26,11 @@ const bool = (v: unknown, dflt: boolean): boolean => (typeof v === 'boolean' ? v
 export function sanitizeSettings(raw: unknown): GameSettings {
   const d = defaultSettings();
   if (typeof raw !== 'object' || raw === null) return d;
-  const r = raw as Record<string, Record<string, unknown> | undefined> & { sound?: unknown; violence?: unknown };
+  const r = raw as Record<string, Record<string, unknown> | undefined> & { sound?: unknown; violence?: unknown; language?: unknown };
   const dm = r.dm ?? {};
   const ctf = r.ctf ?? {};
   return {
+    language: r.language === 'en' || r.language === 'ru' || r.language === 'auto' ? r.language : d.language,
     sound: bool(r.sound, d.sound),
     violence: bool(r.violence, d.violence),
     dm: {

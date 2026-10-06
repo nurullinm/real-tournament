@@ -1,5 +1,6 @@
 import type { ButtonId, ButtonLayout, Insets } from '../input/layout';
 import type { StickState } from '../input/touch';
+import { orderShort, t, weaponName } from '../i18n';
 import type { Match } from '../engine/types';
 
 export interface Viewport {
@@ -11,7 +12,6 @@ export interface Viewport {
 
 const SIDE_COLORS = ['#3a5bff', '#e03030', '#25b25a', '#d9b800'];
 const FLAG_COLORS = ['#4444ff', '#ff4444'];
-const WEAPON_NAMES = ['SAW', 'LASER', 'BAZOOKA'];
 
 function bar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, frac: number, color: string): void {
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -40,7 +40,7 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
   bar(ctx, left, top + 20, 120, 10, p.armor / 100, '#46a3ff');
   text(ctx, String(p.armor), left + 126, top + 25);
   const ammo = p.currentWeapon === 0 ? '∞' : String(p.ammo[p.currentWeapon]);
-  text(ctx, `${WEAPON_NAMES[p.currentWeapon] ?? ''}  ${ammo}`, left, top + 46);
+  text(ctx, `${weaponName(p.currentWeapon)}  ${ammo}`, left, top + 46);
 
   const cx = vp.w / 2;
   ctx.font = '700 13px ui-rounded, system-ui, sans-serif';
@@ -55,7 +55,7 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
     text(ctx, String(best === -Infinity ? 0 : best), cx + 19, top + 9, 'center');
     if (m.fragLimit > 0) {
       ctx.font = '600 10px ui-rounded, system-ui, sans-serif';
-      text(ctx, `FIRST TO ${m.fragLimit}`, cx, top + 26, 'center');
+      text(ctx, t('hud.firstTo', { n: m.fragLimit }), cx, top + 26, 'center');
     }
   } else {
     for (let s = 0; s < 2; s++) {
@@ -67,12 +67,11 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
     }
     if (m.fragLimit > 0) {
       ctx.font = '600 10px ui-rounded, system-ui, sans-serif';
-      text(ctx, `FIRST TO ${m.fragLimit}`, cx, top + 42, 'center');
+      text(ctx, t('hud.firstTo', { n: m.fragLimit }), cx, top + 42, 'center');
     }
   }
 }
 
-const ORDER_LABELS: Record<string, string> = { order0: 'DEFEND', order1: 'ATTACK', order2: 'FREE' };
 
 /** Line with an arrow head at (x1, y1). */
 function arrow(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, head: number): void {
@@ -132,8 +131,15 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
       ctx.lineWidth = chosen ? 2 : 1.5;
       ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.font = `700 ${Math.round(b.h * 0.34)}px system-ui, sans-serif`;
-      ctx.fillText(ORDER_LABELS[b.id] ?? '', b.x + b.w / 2, b.y + b.h / 2);
+      const label = orderShort(Number(b.id.slice(5)));
+      let size = Math.round(b.h * 0.34);
+      ctx.font = `700 ${size}px system-ui, sans-serif`;
+      // longer (translated) labels shrink to fit inside the pill
+      for (let i = 0; i < 8 && size > 7 && ctx.measureText(label).width > b.w - 12; i++) {
+        size -= 1;
+        ctx.font = `700 ${size}px system-ui, sans-serif`;
+      }
+      ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2);
       continue;
     }
     circle(ctx, b.cx, b.cy, b.r, fill, 'rgba(255,255,255,0.55)');

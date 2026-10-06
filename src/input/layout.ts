@@ -74,7 +74,7 @@ export function computeLayout(w: number, h: number, safe: Insets, withOrders = f
     onArc('weaponNext', swapR, fireR + swapR + 40, 72),
   ];
   if (withOrders) {
-    const pw = Math.round(54 * unit);
+    const pw = Math.round(62 * unit);
     const ph = Math.round(34 * unit);
     for (let i = 0; i < 3; i++) {
       buttons.push({ id: `order${i}` as ButtonId, shape: 'pill', x: safe.l + 22 + i * (pw + 6), y: stick.cy - R - 14 - ph, w: pw, h: ph });

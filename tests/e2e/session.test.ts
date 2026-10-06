@@ -6,6 +6,7 @@ import { botInput } from '../../src/bots';
 import { GameSession, type FrameInfo, type SessionDeps } from '../../src/game/session';
 import { computeLayout } from '../../src/input/layout';
 import type { Platform } from '../../src/platform/telegram';
+import { setLang } from '../../src/i18n';
 import { CTF_OPTS, DM_OPTS, REAL_ASSETS, REAL_MAPS } from '../engine/real';
 
 const img = {} as ImageBitmap;
@@ -118,6 +119,23 @@ describe('match lifecycle', () => {
     texts.length = 0;
     s.draw(ctx, frame(VIEWPORTS[0], true), 0);
     expect(texts).not.toContain('Ally: Take their flag!'); // the toast fades after about two seconds
+  });
+
+  it('the order toast is shown in the selected language', () => {
+    setLang('ru');
+    try {
+      const s = new GameSession({ ...CTF_OPTS }, 1, deps);
+      s.setAllyOrder(1);
+      const r = recorder();
+      r.canvas.width = 1912;
+      r.canvas.height = 880;
+      const texts: string[] = [];
+      const ctx = new Proxy(r.ctx as object, { get: (t, n: string) => (n === 'fillText' ? (x: string) => { texts.push(x); } : n === 'measureText' ? (x: string) => ({ width: x.length * 7 }) : (t as Record<string, unknown>)[n]), set: () => true }) as unknown as CanvasRenderingContext2D;
+      s.draw(ctx, frame(VIEWPORTS[0], true), 0);
+      expect(texts).toContain('Союзник: Взять флаг!');
+    } finally {
+      setLang('en');
+    }
   });
 
   it('orders are ignored (no toast, no sound) when there is no ally', () => {

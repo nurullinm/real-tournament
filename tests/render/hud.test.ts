@@ -7,6 +7,7 @@ import { drawActors, drawFighter } from '../../src/render/fighters';
 import { drawControls, drawHud, drawToast } from '../../src/render/hud';
 import { newWorldAnim } from '../../src/render/world';
 import { computeLayout } from '../../src/input/layout';
+import { setLang } from '../../src/i18n';
 import { CTF_OPTS, DM_OPTS, REAL_ASSETS, REAL_MAPS } from '../engine/real';
 
 interface Call { name: string; args: unknown[] }
@@ -167,5 +168,27 @@ describe('order feedback', () => {
     const t = mockCtx();
     drawToast(t.ctx, 'Ally: Defend the base', vp, safe, 74);
     expect(t.calls.some((c) => c.name === 'fillText' && c.args[0] === 'Ally: Defend the base')).toBe(true);
+  });
+});
+
+describe('HUD in Russian', () => {
+  it('shows weapon name, limit caption and order pills in Russian, and never English', () => {
+    setLang('ru');
+    try {
+      const m = createMatch(CTF_OPTS, REAL_MAPS[7]!, 1, REAL_ASSETS);
+      m.fighters[0]!.currentWeapon = 1;
+      const hud = mockCtx();
+      drawHud(hud.ctx, m, 0, vp, safe);
+      const hudTexts = hud.calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+      expect(hudTexts.some((x) => x.startsWith('ЛАЗЕР'))).toBe(true);
+      expect(hudTexts).toContain('ДО 3');
+      expect(hudTexts.join(' ')).not.toMatch(/LASER|FIRST TO/);
+      const ctl = mockCtx();
+      drawControls(ctl.ctx, computeLayout(956, 440, safe, true), new Set(), { active: false, x: 0, y: 0 }, 2, 0);
+      const pills = ctl.calls.filter((c) => c.name === 'fillText').map((c) => String(c.args[0]));
+      expect(pills).toEqual(expect.arrayContaining(['ЗАЩИТА', 'АТАКА', 'СВОБОДА']));
+    } finally {
+      setLang('en');
+    }
   });
 });

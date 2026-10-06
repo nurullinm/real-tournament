@@ -1,6 +1,5 @@
 import './ui/style.css';
 import { parsePassability, loadAllMaps } from './assets/maps';
-import { parseStrings } from './assets/strings';
 import { loadSprites } from './assets/sprites';
 import { createAudio } from './audio/audio';
 import { computeMuzzle } from './engine/muzzle';
@@ -10,6 +9,7 @@ import { createLoop } from './game/loop';
 import { computeLayout, type Insets } from './input/layout';
 import { createKeyboardInput, mergeInputs } from './input/keyboard';
 import { createTouchInput } from './input/touch';
+import { getLang, onLangChange, resolveLang, setLang, t } from './i18n';
 import { initPlatform } from './platform/telegram';
 import { createUi } from './ui/screens';
 import { loadSettings, saveSettings, toMatchOptions } from './ui/settings';
@@ -35,10 +35,16 @@ async function boot(): Promise<void> {
   const platform = await initPlatform();
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const ctx = canvas.getContext('2d', { alpha: false })!;
-  const [sprites, maps, pass, helpBytes] = await Promise.all([loadSprites(), loadAllMaps(), bytes('original/pass'), bytes('original/help.str')]);
+  const [sprites, maps, pass] = await Promise.all([loadSprites(), loadAllMaps(), bytes('original/pass')]);
   const assets: EngineAssets = { passable: parsePassability(pass), ...computeMuzzle(sprites.chars) };
-  const helpStrings = parseStrings(helpBytes);
   const settings = loadSettings();
+  const applyLanguage = (): void => setLang(resolveLang(settings.language, platform.languageHints()));
+  onLangChange(() => {
+    document.documentElement.lang = getLang();
+    document.title = t('app.title');
+  });
+  applyLanguage();
+  document.documentElement.lang = getLang();
   const audio = createAudio();
   audio.setEnabled(settings.sound);
 
@@ -143,17 +149,17 @@ async function boot(): Promise<void> {
   }
 
   const ui = createUi(document.getElementById('ui')!, settings, {
-    controls: 'Use the arrows at the bottom left to move. Press jump to jump (hold it for a higher jump) and fire to shoot the current weapon.\n\nChange weapons with the ‹ › buttons.\n\nPress the action button next to an elevator button to call it, or at a cycle dock to get on a cycle.\n\nOn a computer: arrows or WASD, Space to fire, Q/E or 1-3 to change weapons.',
-    pickups: helpStrings[5] ?? '',
-    deathmatch: helpStrings[6] ?? '',
-    ctf: (helpStrings[7] ?? '').replace('To command your ally, press SOFT1.', 'To command your ally, use the order buttons on the screen or the pause menu.'),
-  }, {
     start,
     continueGame: () => { ui.hide(); loop.resume(); },
     resume: () => { ui.hide(); loop.resume(); },
     pause: pauseMenu,
     endGame: toMenu,
-    settingsChanged: (s) => { saveSettings(s); audio.setEnabled(s.sound); if (!session) audio.music(s.sound); },
+    settingsChanged: (s) => {
+      saveSettings(s);
+      audio.setEnabled(s.sound);
+      if (!session) audio.music(s.sound);
+      applyLanguage();
+    },
     allyOrder: (o) => session?.setAllyOrder(o),
   });
 
@@ -188,6 +194,6 @@ async function boot(): Promise<void> {
 boot().catch((err) => {
   const el = document.createElement('pre');
   el.style.cssText = 'color:#fff;padding:16px;white-space:pre-wrap';
-  el.textContent = `Failed to start: ${err instanceof Error ? err.message : String(err)}`;
+  el.textContent = t('boot.failed', { message: err instanceof Error ? err.message : String(err) });
   document.body.append(el);
 });

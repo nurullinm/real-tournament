@@ -7,6 +7,7 @@ import { createMatch, matchResult, step, type MatchResult } from '../engine/matc
 import type { EngineAssets, InputState, Match, MatchOptions } from '../engine/types';
 import type { ButtonLayout, ButtonId, Insets } from '../input/layout';
 import type { StickState } from '../input/touch';
+import { orderLabel, t } from '../i18n';
 import type { Platform } from '../platform/telegram';
 import { cameraTarget, computeCamera, followCamera, type Point } from '../render/camera';
 import { Effects } from '../render/effects';
@@ -20,7 +21,6 @@ const TARGET_TILES_H = 14;
 const CAMERA_STEP_X = 6;
 const CAMERA_STEP_Y = 9;
 const TOAST_TICKS = 36;
-const ORDER_TEXT = ['Defend the base', 'Take their flag!', 'Freelance!'] as const;
 
 export interface SessionDeps {
   sprites: Sprites;
@@ -110,7 +110,7 @@ export class GameSession {
     if (!this.canOrderAlly) return;
     setAllyOrder(this.match, order);
     // the ally changes route at his next waypoint, so confirm the order right away
-    this.toast = { text: `Ally: ${ORDER_TEXT[order]}`, ticks: TOAST_TICKS };
+    this.toast = { text: t('toast.ally', { order: orderLabel(order) }), ticks: TOAST_TICKS };
     this.deps.platform.haptic('light');
     this.deps.audio.play('pickup');
   }

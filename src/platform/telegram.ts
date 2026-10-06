@@ -15,6 +15,8 @@ export interface Platform {
   onVisibility(cb: (visible: boolean) => void): void;
   onResize(cb: () => void): void;
   haptic(kind: 'light' | 'medium'): void;
+  /** language hints in order of preference (Telegram user language, then the browser's) */
+  languageHints(): string[];
 }
 
 interface TgWebApp {
@@ -28,6 +30,7 @@ interface TgWebApp {
   safeAreaInset?: { top: number; bottom: number; left: number; right: number };
   contentSafeAreaInset?: { top: number; bottom: number; left: number; right: number };
   HapticFeedback?: { impactOccurred(style: string): void };
+  initDataUnsafe?: { user?: { language_code?: string } };
 }
 
 /** The slice of `window` the platform layer touches (injectable for tests). */
@@ -36,6 +39,7 @@ export interface PlatformEnv {
   innerWidth: number;
   innerHeight: number;
   screen?: { orientation?: { lock?(o: string): Promise<void> } };
+  navigator?: { language?: string; languages?: readonly string[] };
   document?: { hidden: boolean; addEventListener(t: string, cb: () => void): void };
   addEventListener(t: string, cb: () => void): void;
 }
@@ -107,6 +111,10 @@ export function createPlatform(env: PlatformEnv): Platform {
     },
     haptic(kind): void {
       tg?.HapticFeedback?.impactOccurred(kind);
+    },
+    languageHints(): string[] {
+      const nav = env.navigator;
+      return [tg?.initDataUnsafe?.user?.language_code, ...(nav?.languages ?? []), nav?.language].filter((x): x is string => !!x);
     },
   };
 }
