@@ -112,7 +112,7 @@ export class GameSession {
     // the ally changes route at his next waypoint, so confirm the order right away
     this.toast = { text: t('toast.ally', { order: orderLabel(order) }), ticks: TOAST_TICKS };
     this.deps.platform.haptic('light');
-    this.deps.audio.play('pickup');
+    this.deps.audio.play('order');
   }
 
   /** current order of the ally (fighter 1), or -1 when there is no ally */

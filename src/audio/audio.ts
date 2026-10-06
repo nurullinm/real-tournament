@@ -1,118 +1,210 @@
-export type SoundName =
-  | 'saw' | 'explosion' | 'respawn' | 'bazooka' | 'laser' | 'pickup' | 'itemrespawn'
-  | 'die' | 'diehard' | 'alarm' | 'capture' | 'spinup';
+import { EFFECT_NAMES, EFFECT_SAMPLE_RATE, renderEffect, type EffectName } from './synth/effects';
+import { THEMES, renderTheme, type MusicId } from './synth/music';
 
-/** Effects with an original recording; pickups are synthesised (silent in the original). */
-const FILES: Partial<Record<SoundName, string>> = {
-  saw: 'saw', explosion: 'explosion', respawn: 'respawn', bazooka: 'bazooka', laser: 'laser',
-  die: 'die', diehard: 'diehard', alarm: 'alarm', capture: 'capture', spinup: 'spinup',
-};
-const COOLDOWN_MS: Partial<Record<SoundName, number>> = { laser: 60, saw: 200, explosion: 80, die: 120, diehard: 200 };
+export type { MusicId };
+export { musicForMap } from './synth/music';
+/** Engine events use these names; `itemrespawn` is intentionally silent. */
+export type SoundName = EffectName | 'itemrespawn';
+
+const COOLDOWN_MS: Partial<Record<SoundName, number>> = { laser: 60, saw: 200, explosion: 80, die: 120, diehard: 200, order: 150 };
 const MAX_VOICES = 10;
+const MUSIC_LEVEL_MENU = 0.5;
+const MUSIC_LEVEL_GAME = 0.3;
+/** effects that briefly pull the music down so they stay clear */
+const DUCKS: ReadonlySet<SoundName> = new Set(['explosion', 'diehard', 'die', 'capture', 'alarm']);
 
-/** Minimal WebAudio surface the module needs (injectable for tests). */
-export interface AudioDeps {
-  createContext(): AudioContextLike;
-  fetchBytes(url: string): Promise<ArrayBuffer>;
-  now(): number;
+export interface BufferLike {
+  copyToChannel(src: Float32Array, channel: number): void;
 }
+interface GainNodeLike {
+  gain: { value: number; setValueAtTime?(v: number, t: number): void; linearRampToValueAtTime?(v: number, t: number): void; setTargetAtTime?(v: number, t: number, k: number): void; cancelScheduledValues?(t: number): void };
+  connect(n: unknown): void;
+}
+interface SourceLike {
+  buffer: unknown; loop: boolean; connect(n: unknown): void; start(t?: number): void; stop(t?: number): void; onended: (() => void) | null;
+}
+/** Minimal WebAudio surface the module needs (injectable for tests). */
 export interface AudioContextLike {
   currentTime: number;
   destination: unknown;
+  state: string;
+  onstatechange: (() => void) | null;
   resume(): Promise<void>;
   suspend(): Promise<void>;
-  decodeAudioData(b: ArrayBuffer): Promise<unknown>;
-  createBufferSource(): { buffer: unknown; loop: boolean; connect(n: unknown): void; start(t?: number): void; stop(): void; onended: (() => void) | null };
-  createGain(): { gain: { value: number }; connect(n: unknown): void };
-  createOscillator(): { type: string; frequency: { setValueAtTime(v: number, t: number): void }; connect(n: unknown): void; start(t: number): void; stop(t: number): void };
+  createBuffer(channels: number, length: number, sampleRate: number): BufferLike;
+  createBufferSource(): SourceLike;
+  createGain(): GainNodeLike;
+}
+export interface AudioDeps {
+  createContext(): AudioContextLike;
+  now(): number;
+  /** lets long synth renders give the UI thread a breath */
+  yield(): Promise<void>;
+  renderMusic(id: MusicId, yieldFn: () => Promise<void>): Promise<{ left: Float32Array; right: Float32Array; sr: number }>;
 }
 
 export interface Audio {
-  /** Call from the first user gesture (touch): creates/resumes the context and loads the sounds. */
+  /** Creates the audio context and renders all sounds; safe to call before any user gesture. */
+  init(): void;
+  /** Call from a user gesture (touch/click/key): resumes a suspended context. Idempotent. */
   unlock(): Promise<void>;
+  readonly running: boolean;
+  /** the music loop that is actually audible right now (null while loading, blocked or stopped) */
+  readonly nowPlaying: MusicId | null;
   play(name: SoundName, volume?: number): void;
-  music(on: boolean): void;
+  /** Loop for the menu or a map; null stops the music. Starts as soon as sound is allowed. */
+  playMusic(id: MusicId | null): void;
   setEnabled(on: boolean): void;
   suspend(): void;
   resume(): void;
 }
 
-export function createAudio(base = 'audio/', deps?: Partial<AudioDeps>): Audio {
+export function createAudio(deps?: Partial<AudioDeps>): Audio {
   const d: AudioDeps = {
     createContext: () => new (globalThis.AudioContext ?? (globalThis as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)() as unknown as AudioContextLike,
-    fetchBytes: async (u) => (await fetch(u)).arrayBuffer(),
     now: () => Date.now(),
+    yield: () => new Promise<void>((r) => setTimeout(r, 0)),
+    renderMusic: (id, yieldFn) => renderTheme(THEMES[id]!, undefined, yieldFn),
     ...deps,
   };
   let ctx: AudioContextLike | null = null;
-  const buffers = new Map<string, unknown>();
+  const effects = new Map<EffectName, BufferLike>();
+  const music = new Map<MusicId, BufferLike>();
+  const musicLoading = new Set<MusicId>();
+  /** themes whose render failed: never retried (a retry loop would burn the CPU forever) */
+  const musicFailed = new Set<MusicId>();
   const last = new Map<SoundName, number>();
   let voices = 0;
   let enabled = true;
-  let wantMusic = false;
-  let musicNode: { stop(): void } | null = null;
   let suspended = false;
+  let wanted: MusicId | null = null;
+  let playing: { id: MusicId; src: SourceLike; gain: GainNodeLike; level: number } | null = null;
+  let started = false;
 
-  const startMusic = (): void => {
-    const buf = buffers.get('intro');
-    if (!ctx || !buf || musicNode || !wantMusic || !enabled || suspended) return;
+  const isRunning = (): boolean => ctx?.state === 'running';
+
+  function stopMusic(fade = 0.35): void {
+    const p = playing;
+    playing = null;
+    if (!p || !ctx) return;
+    try {
+      const t = ctx.currentTime;
+      if (p.gain.gain.linearRampToValueAtTime) {
+        p.gain.gain.cancelScheduledValues?.(t);
+        p.gain.gain.setValueAtTime?.(p.gain.gain.value, t);
+        p.gain.gain.linearRampToValueAtTime(0, t + fade);
+        p.src.stop(t + fade + 0.05);
+      } else {
+        p.src.stop();
+      }
+    } catch {
+      /* already stopped */
+    }
+  }
+
+  function startMusic(): void {
+    if (!ctx || !wanted || !enabled || suspended || !isRunning()) return;
+    if (playing?.id === wanted) return;
+    const buf = music.get(wanted);
+    if (!buf) { if (!musicFailed.has(wanted)) void loadMusic(wanted); return; }
+    stopMusic();
+    const level = wanted === 'menu' ? MUSIC_LEVEL_MENU : MUSIC_LEVEL_GAME;
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
-    gain.gain.value = 0.45;
     src.buffer = buf;
     src.loop = true;
     src.connect(gain);
     gain.connect(ctx.destination);
+    const t = ctx.currentTime;
+    if (gain.gain.setValueAtTime && gain.gain.linearRampToValueAtTime) {
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(level, t + 1.2); // fade in
+    } else {
+      gain.gain.value = level;
+    }
     src.start();
-    musicNode = src;
-  };
-  const stopMusic = (): void => {
-    musicNode?.stop();
-    musicNode = null;
-  };
-
-  function blip(freqs: number[], volume: number): void {
-    if (!ctx) return;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.18 * volume;
-    gain.connect(ctx.destination);
-    freqs.forEach((f, i) => {
-      const osc = ctx!.createOscillator();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(f, ctx!.currentTime + i * 0.06);
-      osc.connect(gain);
-      osc.start(ctx!.currentTime + i * 0.06);
-      osc.stop(ctx!.currentTime + i * 0.06 + 0.06);
-    });
+    playing = { id: wanted, src, gain, level };
   }
 
-  return {
+  async function loadMusic(id: MusicId): Promise<void> {
+    if (!ctx || music.has(id) || musicLoading.has(id) || musicFailed.has(id)) return;
+    musicLoading.add(id);
+    try {
+      const r = await d.renderMusic(id, d.yield);
+      const b = ctx.createBuffer(2, r.left.length, r.sr);
+      b.copyToChannel(r.left, 0);
+      b.copyToChannel(r.right, 1);
+      music.set(id, b);
+      // keep memory small: the menu loop and the current one
+      for (const k of [...music.keys()]) if (k !== 'menu' && k !== wanted && k !== id) music.delete(k);
+    } catch {
+      musicFailed.add(id); // no music is better than a crash or a retry storm
+    } finally {
+      musicLoading.delete(id);
+    }
+    startMusic();
+  }
+
+  async function renderEffects(): Promise<void> {
+    for (const name of EFFECT_NAMES) {
+      if (!ctx) return;
+      const data = renderEffect(name);
+      const b = ctx.createBuffer(1, data.length, EFFECT_SAMPLE_RATE);
+      b.copyToChannel(data, 0);
+      effects.set(name, b);
+      await d.yield();
+    }
+  }
+
+  function duck(): void {
+    const p = playing;
+    if (!p || !ctx || !p.gain.gain.setTargetAtTime) return;
+    const t = ctx.currentTime;
+    p.gain.gain.setTargetAtTime(p.level * 0.4, t, 0.015);
+    p.gain.gain.setTargetAtTime(p.level, t + 0.5, 0.25);
+  }
+
+  const api: Audio = {
+    init(): void {
+      if (started) return;
+      started = true;
+      ctx = d.createContext();
+      ctx.onstatechange = () => startMusic();
+      // some webviews allow audio without a gesture: try right away, otherwise the first touch does it
+      void ctx.resume().then(() => startMusic(), () => {});
+      void renderEffects();
+      if (wanted) void loadMusic(wanted);
+    },
     async unlock(): Promise<void> {
-      if (!ctx) {
-        ctx = d.createContext();
-        const names = [...Object.values(FILES), 'intro'] as string[];
-        await Promise.all(names.map(async (n) => {
-          try {
-            buffers.set(n, await ctx!.decodeAudioData(await d.fetchBytes(`${base}${n}.wav`)));
-          } catch {
-            /* a missing/undecodable file just stays silent */
-          }
-        }));
-      }
+      api.init();
+      if (!ctx) return;
       suspended = false;
+      try {
+        // iOS: a started (silent) source inside the gesture is what really unlocks output
+        const silent = ctx.createBufferSource();
+        silent.buffer = ctx.createBuffer(1, 1, 22050);
+        silent.connect(ctx.destination);
+        silent.start(0);
+      } catch {
+        /* not essential */
+      }
       await ctx.resume();
       startMusic();
     },
+    get running(): boolean {
+      return isRunning();
+    },
+    get nowPlaying(): MusicId | null {
+      return playing?.id ?? null;
+    },
     play(name, volume = 1): void {
-      if (!ctx || !enabled || suspended || volume <= 0) return;
+      if (!ctx || !enabled || suspended || volume <= 0 || !isRunning()) return;
       const now = d.now();
       const cd = COOLDOWN_MS[name] ?? 40;
       if (now - (last.get(name) ?? -1e9) < cd) return;
       last.set(name, now);
-      if (name === 'pickup') return blip([660, 990], volume);
       if (name === 'itemrespawn') return;
-      const file = FILES[name];
-      const buf = file && buffers.get(file);
+      const buf = effects.get(name);
       if (!buf || voices >= MAX_VOICES) return;
       const src = ctx.createBufferSource();
       const gain = ctx.createGain();
@@ -124,11 +216,13 @@ export function createAudio(base = 'audio/', deps?: Partial<AudioDeps>): Audio {
       voices++;
       src.onended = () => { voices--; };
       src.start();
+      if (DUCKS.has(name)) duck();
     },
-    music(on): void {
-      wantMusic = on;
-      if (on) startMusic();
-      else stopMusic();
+    playMusic(id): void {
+      wanted = id;
+      if (!id) { stopMusic(); return; }
+      if (ctx) void loadMusic(id);
+      startMusic();
     },
     setEnabled(on): void {
       enabled = on;
@@ -137,13 +231,14 @@ export function createAudio(base = 'audio/', deps?: Partial<AudioDeps>): Audio {
     },
     suspend(): void {
       suspended = true;
-      stopMusic();
+      stopMusic(0.05);
       void ctx?.suspend();
     },
     resume(): void {
       suspended = false;
-      void ctx?.resume();
+      void ctx?.resume().then(() => startMusic(), () => {});
       startMusic();
     },
   };
+  return api;
 }

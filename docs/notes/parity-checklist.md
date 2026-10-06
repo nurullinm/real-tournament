@@ -36,7 +36,7 @@ Checked visually in the browser pane (956×440): main menu, DM/CTF setup (fits w
 - Landscape view shows ~30×14 tiles instead of 11×12; camera look-ahead and 5–6 px/tick follow speed are kept proportionally.
 - Rendering interpolates fighters and rockets between 60 ms ticks (60 fps); simulation is unchanged.
 - RNG is a seeded mulberry32 with the same call shapes, not `java.util.Random`.
-- Sound: original AMR effects (from the a10 build) decoded to WAV, mixed polyphonically with distance-based volume instead of the original single-channel priority system; pickup is a synthesised blip; item respawn is silent (as in a10).
+- Sound: the original 8 kHz AMR recordings sounded like a phone line, so every effect is now synthesised in code at 44.1 kHz (src/audio/synth, modern sci-fi style) and rendered once at start; polyphonic mixing with distance-based volume replaces the original single-channel priority system; item respawn stays silent (as in a10). Each map has its own procedural music loop (13 themes incl. the menu; quiet, highs rolled off, ducked briefly under explosions). Audition page: /sounds.html.
 - UI is DOM instead of canvas menus; no "Exit", no RMS save/"Continue" of an interrupted game; options persist in localStorage.
 - Controls are touch buttons (+ keyboard for desktop); weapons are changed with ‹ › buttons.
 - Ally orders are "Defend the base / Take their flag! / Freelance!" (the spec's "Wait" was a loading string).

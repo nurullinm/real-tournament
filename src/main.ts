@@ -1,7 +1,7 @@
 import './ui/style.css';
 import { parsePassability, loadAllMaps } from './assets/maps';
 import { loadSprites } from './assets/sprites';
-import { createAudio } from './audio/audio';
+import { createAudio, musicForMap } from './audio/audio';
 import { computeMuzzle } from './engine/muzzle';
 import type { EngineAssets } from './engine/types';
 import { GameSession, TICK_HZ, type FrameInfo } from './game/session';
@@ -31,13 +31,29 @@ async function bytes(url: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+/** Events that count as a user gesture on iOS/Android/desktop; the first one that works unlocks sound. */
+const GESTURES = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown'] as const;
+
 async function boot(): Promise<void> {
+  // Sound is set up before anything is downloaded: a tap during loading must not be lost, and webviews that
+  // allow autoplay start the menu music immediately.
+  const settings = loadSettings();
+  const audio = createAudio();
+  audio.setEnabled(settings.sound);
+  audio.playMusic('menu');
+  audio.init();
+  const unlockAudio = (): void => {
+    void audio.unlock().then(() => {
+      if (audio.running) for (const g of GESTURES) window.removeEventListener(g, unlockAudio, true);
+    });
+  };
+  for (const g of GESTURES) window.addEventListener(g, unlockAudio, { capture: true, passive: true });
+
   const platform = await initPlatform();
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const ctx = canvas.getContext('2d', { alpha: false })!;
   const [sprites, maps, pass] = await Promise.all([loadSprites(), loadAllMaps(), bytes('original/pass')]);
   const assets: EngineAssets = { passable: parsePassability(pass), ...computeMuzzle(sprites.chars) };
-  const settings = loadSettings();
   const applyLanguage = (): void => setLang(resolveLang(settings.language, platform.languageHints()));
   onLangChange(() => {
     document.documentElement.lang = getLang();
@@ -45,8 +61,6 @@ async function boot(): Promise<void> {
   });
   applyLanguage();
   document.documentElement.lang = getLang();
-  const audio = createAudio();
-  audio.setEnabled(settings.sound);
 
   let session: GameSession | null = null;
   let orientationLocked = false;
@@ -135,13 +149,13 @@ async function boot(): Promise<void> {
     loop.pause();
     ui.setPauseButton(false);
     ui.showMain(false);
-    audio.music(settings.sound);
+    audio.playMusic(settings.sound ? 'menu' : null);
     resize();
   }
   function start(mode: 'dm' | 'ctf'): void {
     saveSettings(settings);
     session = new GameSession(toMatchOptions(settings, mode), (Date.now() ^ (performance.now() * 1000)) >>> 0, { sprites, audio, platform, assets, maps });
-    audio.music(false);
+    audio.playMusic(musicForMap(toMatchOptions(settings, mode).mapId));
     ui.hide();
     ui.setPauseButton(true);
     resize();
@@ -157,13 +171,13 @@ async function boot(): Promise<void> {
     settingsChanged: (s) => {
       saveSettings(s);
       audio.setEnabled(s.sound);
-      if (!session) audio.music(s.sound);
+      if (!session) audio.playMusic('menu');
       applyLanguage();
     },
     allyOrder: (o) => session?.setAllyOrder(o),
   });
 
-  window.addEventListener('pointerdown', () => { void audio.unlock().then(() => { if (!session) audio.music(settings.sound); }); void platform.lockLandscape(); }, { once: true });
+  window.addEventListener('pointerdown', () => { void platform.lockLandscape(); }, { once: true });
   platform.onResize(resize);
   platform.onVisibility((visible) => {
     tgActive = visible;
@@ -175,9 +189,8 @@ async function boot(): Promise<void> {
     if (loop.running) pauseMenu();
     else if (ui.paused) { ui.hide(); loop.resume(); }
   });
-  window.addEventListener('keydown', () => { void audio.unlock(); }, { once: true });
 
-  if (import.meta.env.DEV) (window as unknown as { __rt: unknown }).__rt = { get session() { return session; }, loop, ui, settings, tickOnce, renderFrame };
+  if (import.meta.env.DEV) (window as unknown as { __rt: unknown }).__rt = { get session() { return session; }, loop, ui, settings, tickOnce, renderFrame, audio };
   const auto = new URLSearchParams(location.search).get('autostart');
   resize();
   if (auto === 'dm' || auto === 'ctf') {

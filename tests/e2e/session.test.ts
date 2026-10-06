@@ -32,7 +32,7 @@ function recorder() {
 
 const audioLog: string[] = [];
 const audio: Audio = {
-  unlock: async () => {}, play: (n) => { audioLog.push(n); }, music: () => {}, setEnabled: () => {}, suspend: () => {}, resume: () => {},
+  init() {}, unlock: async () => {}, running: true, nowPlaying: null, play: (n) => { audioLog.push(n); }, playMusic: () => {}, setEnabled: () => {}, suspend: () => {}, resume: () => {},
 };
 const haptics: string[] = [];
 const platform = { isTelegram: false, haptic: (k: string) => { haptics.push(k); } } as unknown as Platform;
@@ -106,7 +106,7 @@ describe('match lifecycle', () => {
     expect(s.allyOrder).toBe(0);
     s.setAllyOrder(1);
     expect(s.allyOrder).toBe(1);
-    expect(audioLog).toContain('pickup');
+    expect(audioLog).toContain('order');
     expect(haptics).toContain('light');
     const r = recorder();
     r.canvas.width = 1912;
@@ -143,7 +143,7 @@ describe('match lifecycle', () => {
     const s = new GameSession({ ...DM_OPTS }, 1, deps);
     s.setAllyOrder(1);
     expect(s.allyOrder).toBe(-1);
-    expect(audioLog).not.toContain('pickup');
+    expect(audioLog).not.toContain('order');
   });
 
   it('can order the ally only in a 2v2 CTF match', () => {

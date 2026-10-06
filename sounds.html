@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Real Tournament: звуки</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; padding: 16px; background: #090a1d; color: #f2f3ff; font: 600 15px/1.35 ui-rounded, system-ui, sans-serif; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    h2 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #ffa31a; margin: 22px 0 8px; }
+    p { margin: 0 0 8px; color: #9ba0d0; font-weight: 500; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    button { border: 2px solid #3b3f78; background: #15184a; color: inherit; font: inherit; padding: 12px 10px; border-radius: 10px; text-align: left; cursor: pointer; touch-action: manipulation; }
+    button small { display: block; color: #9ba0d0; font-weight: 500; font-size: 12px; margin-top: 2px; }
+    button:active, button.on { background: #ffa31a; border-color: #ffa31a; color: #1a1000; }
+    button.on small, button:active small { color: #3a2400; }
+    #status { position: sticky; top: 0; background: #090a1d; padding: 6px 0; color: #9ba0d0; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <h1>Звуки и музыка</h1>
+  <p id="status">Нажмите любую кнопку: звук включается после первого касания.</p>
+  <h2>Эффекты</h2>
+  <div class="grid" id="fx"></div>
+  <h2>Музыка</h2>
+  <div class="grid" id="music"></div>
+  <script type="module" src="/src/sounds-page.ts"></script>
+</body>
+</html>
