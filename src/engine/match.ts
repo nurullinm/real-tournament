@@ -23,9 +23,9 @@ export function createMatch(opts: MatchOptions, map: GameMap, seed: number, asse
   return m;
 }
 
-/** Deathmatch: people wear their own colour and bots are dark grey; CTF: everybody wears the team colour. */
-export function skinFor(m: Match, f: { human: boolean; color: number }): number {
-  return m.gameMode === 1 || f.human ? f.color : BOT_SKIN;
+/** Only people wear a coloured vest (their own colour, or the team colour in CTF); bots are always dark grey. */
+export function skinFor(_m: Match, f: { human: boolean; color: number }): number {
+  return f.human ? f.color : BOT_SKIN;
 }
 
 export function inputToCmd(i: InputState): number {

@@ -61,12 +61,13 @@ describe('vest skins', () => {
     expect(isVestOrange(0, 36, 255)).toBe(false);
   });
 
-  it('Deathmatch: people keep their colour, bots are dark grey; CTF: team colours for everyone', () => {
+  it('only people wear a coloured vest: bots are dark grey in Deathmatch and in CTF', () => {
     const dm = createMatch({ ...DM_OPTS, bots: 3, humans: 2 }, REAL_MAPS[0]!, 3, REAL_ASSETS, botHooks);
     expect(dm.fighters.map((f) => f.skin === BOT_SKIN)).toEqual([false, false, true, true]);
     expect(dm.fighters[0]!.skin).toBe(dm.fighters[0]!.color);
     const ctf = createMatch(CTF_OPTS, REAL_MAPS[7]!, 3, REAL_ASSETS, botHooks);
-    expect(ctf.fighters.slice(0, ctf.numFighters).every((f) => f.skin === f.color && f.skin < 2)).toBe(true);
+    // CTF solo: the player wears the team colour, his ally and both enemies are bots
+    expect(ctf.fighters.map((f) => f.skin)).toEqual([ctf.fighters[0]!.color, BOT_SKIN, BOT_SKIN, BOT_SKIN]);
     const f = dm.fighters[1]!;
     f.human = false;
     expect(skinFor(dm, f)).toBe(BOT_SKIN); // a human who leaves turns into a bot

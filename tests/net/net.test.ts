@@ -122,7 +122,7 @@ describe('online capture the flag', () => {
     const run = (): ReturnType<typeof snapshot> => {
       const m = createMatch(opts, REAL_MAPS[8]!, 777, REAL_ASSETS, botHooks);
       expect(m.fighters.map((f) => f.human)).toEqual([true, false, true, false]);
-      expect(m.fighters.map((f) => f.skin)).toEqual([0, 0, 1, 1]);
+      expect(m.fighters.map((f) => f.skin)).toEqual([0, 4, 1, 4]); // humans wear the team colour, bots are grey
       const ls = new Lockstep([0, 2]);
       for (let n = 1; n <= 300; n++) {
         const i: WireInput[] = [0, 1, 2, 3].map((slot) => (slot === 0 || slot === 2 ? inputAt(n)[slot === 0 ? 0 : 1]! : idle));
