@@ -3,7 +3,7 @@ import { setBusy, setHp, setX, setY } from './fighter';
 import type { Fighter, Match } from './types';
 import { adjustPoToTheLeft, findPoToTheLeft } from './world';
 
-const sound = (m: Match, name: string, x: number, y: number): void => { m.events.push({ kind: 'sound', name, x, y }); };
+const sound = (m: Match, name: string, x: number, y: number, by?: number): void => { m.events.push(by === undefined ? { kind: 'sound', name, x, y } : { kind: 'sound', name, x, y, by }); };
 const fx = (m: Match, seq: string, x: number, y: number): void => { m.events.push({ kind: 'fx', seq, x, y }); };
 export { sound as emitSound, fx as emitFx };
 

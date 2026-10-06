@@ -70,6 +70,8 @@ export interface Fighter {
   aiColorFlag: number;
   /** 0 defend, 1 attack, 2 roam */
   aiOrder: number;
+  /** driven by player input (fighters 0..humans-1); everyone else is an AI bot */
+  human: boolean;
   /** personal frag count (kills of enemies; -1 for a suicide or a teammate kill), kept in every mode */
   frags: number;
 }
@@ -105,7 +107,7 @@ export interface Ray {
 }
 
 export type GameEvent =
-  | { kind: 'sound'; name: string; x: number; y: number }
+  | { kind: 'sound'; name: string; x: number; y: number; /** fighter that caused it, for personal pickup sounds */ by?: number }
   | { kind: 'fx'; seq: string; x: number; y: number }
   | { kind: 'kill'; killer: number; victim: number }
   | { kind: 'flagTaken'; side: number }
@@ -138,6 +140,8 @@ export interface MatchOptions {
   team: boolean;
   /** 0..3 */
   playerColor: number;
+  /** number of human-controlled fighters (slots 0..humans-1); default 1. DM: bots + 1 is the total fighter count */
+  humans?: number;
 }
 
 export interface EngineAssets {

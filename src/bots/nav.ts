@@ -58,7 +58,7 @@ export function moveToFlag(m: Match, f: Fighter, color: number): void {
 
 /** AI_MakeDecision: pick the next node according to carrying state and order. */
 export function makeDecision(m: Match, f: Fighter): void {
-  if (f.number === 0) return;
+  if (f.human) return;
   const mineFlagged = (node(m, f.aiNodeAhead).flags & f.aiColorFlag) !== 0;
   if (f.isCarrying) {
     if (m.flagIsTaken[f.side] && mineFlagged) keepBase(m, f);

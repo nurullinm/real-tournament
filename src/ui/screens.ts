@@ -3,6 +3,7 @@ import type { Match } from '../engine/types';
 import { botName, colorName, ctfMapName, dmMapName, onLangChange, orderLabel, skillName, t, type LangPref } from '../i18n';
 import { teamFragLine } from '../game/stats';
 import { clear, h } from './dom';
+import { cleanName, CODE_LENGTH, MAX_PLAYERS, NAME_MAX, normalizeCode, type LobbyPlayer, type RoomConfig } from '../net/protocol';
 import { cycle, type GameSettings } from './settings';
 
 export interface UiHandlers {
@@ -14,16 +15,27 @@ export interface UiHandlers {
   endGame(): void;
   settingsChanged(s: GameSettings): void;
   allyOrder(o: AllyOrder): void;
+  /** online play: the room server connection is owned by main.ts */
+  mpCreate(): void;
+  mpJoin(code: string): void;
+  mpLeave(): void;
+  mpConfig(cfg: RoomConfig): void;
+  mpStart(): void;
 }
+
+export interface LobbyView { code: string; players: LobbyPlayer[]; cfg: RoomConfig; slot: number; host: boolean }
 
 const SIDE_CSS = ['#3a5bff', '#e03030', '#25b25a', '#d9b800'];
 const LANG_PREFS: readonly LangPref[] = ['auto', 'en', 'ru'];
 
 export interface Ui {
   showMain(canContinue: boolean): void;
+  showMultiplayer(error?: string): void;
+  showConnecting(): void;
+  showLobby(view: LobbyView): void;
   /** `note` is shown at the right of the window header (e.g. the team's frags) */
   showPause(canOrder: boolean, currentOrder: number, note?: string): void;
-  showResult(m: Match): void;
+  showResult(m: Match, online?: { names: string[]; slot: number }): void;
   hide(): void;
   /** true while any menu/overlay is covering the game */
   readonly open: boolean;
@@ -118,8 +130,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     col.append(
       button(t('menu.dm'), () => setupScreen('dm', canContinue), canContinue ? '' : 'primary'),
       button(t('menu.ctf'), () => setupScreen('ctf', canContinue)),
-      // not available yet: a disabled button
-      h('button', { class: 'btn', disabled: true, 'aria-disabled': 'true', text: t('menu.multiplayer') }),
+      button(t('menu.multiplayer'), () => multiplayerScreen()),
       button(t('menu.settings'), () => settingsScreen(() => mainScreen(canContinue))),
       button(t('menu.help'), () => helpScreen(() => mainScreen(canContinue), menu)),
       button(t('menu.about'), () => aboutScreen(canContinue)),
@@ -173,6 +184,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         toggle(t('settings.sound'), () => settings.sound, (v) => { settings.sound = v; }),
         toggle(t('settings.violence'), () => settings.violence, (v) => { settings.violence = v; }),
         // the language change re-draws this window right away in the new language
+        nickField(),
         selector(
           t('settings.language'),
           () => langText(settings.language),
@@ -182,6 +194,96 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       ],
     }));
     open(menu);
+  }
+
+  const nickField = (): HTMLElement => {
+    const input = h('input', { class: 'input', type: 'text', maxlength: NAME_MAX, placeholder: t('mp.nick.ph'), 'aria-label': t('mp.nick'), autocomplete: 'off', value: settings.nickname }) as HTMLInputElement;
+    input.addEventListener('input', () => { settings.nickname = cleanName(input.value, ''); save(); });
+    return h('div', { class: 'row' }, h('div', { class: 'label', text: t('mp.nick') }), input);
+  };
+
+  function multiplayerScreen(error?: string): void {
+    clear(menu);
+    const code = h('input', { class: 'input code', type: 'text', maxlength: CODE_LENGTH, placeholder: t('mp.code.ph'), 'aria-label': t('mp.code'), autocomplete: 'off', autocapitalize: 'characters' }) as HTMLInputElement;
+    code.addEventListener('input', () => { code.value = normalizeCode(code.value); });
+    const msg = h('div', { class: 'mp-msg', text: error ?? '' });
+    const join = (): void => {
+      if (code.value.length !== CODE_LENGTH) { msg.textContent = t('mp.err.short'); return; }
+      handlers.mpJoin(code.value);
+    };
+    menu.append(win({
+      title: t('mp.title'),
+      onBack: () => mainScreen(false),
+      body: [
+        nickField(),
+        h('div', { class: 'row actions' }, button(t('mp.create'), handlers.mpCreate, 'primary')),
+        h('div', { class: 'row' }, h('div', { class: 'label', text: t('mp.code') }), code, button(t('mp.join'), join, 'chip')),
+        msg,
+      ],
+    }));
+    open(menu);
+  }
+
+  function connectingScreen(): void {
+    clear(menu);
+    menu.append(win({ title: t('mp.title'), onBack: handlers.mpLeave, body: [h('div', { class: 'help', text: t('mp.connecting') })] }));
+    open(menu);
+  }
+
+  function lobbyScreen(v: LobbyView): void {
+    clear(menu);
+    const list = h('div', { class: 'plist' });
+    for (const p of v.players) {
+      list.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
+        h('span', { class: 'dot', style: `background:${SIDE_CSS[p.slot] ?? '#fff'}` }),
+        h('span', { class: 'pname', text: p.name }),
+        h('span', { class: 'ptag', text: [p.host ? t('mp.host') : '', p.slot === v.slot ? t('mp.you') : ''].filter(Boolean).join(' · ') })));
+    }
+    const body: HTMLElement[] = [
+      h('div', { class: 'code-big', text: v.code }),
+      button(t('mp.share'), () => shareRoom(v.code), 'chip'),
+      h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }),
+      list,
+    ];
+    const cfg = v.cfg;
+    if (v.host) {
+      const push = (patch: Partial<RoomConfig>): void => { handlers.mpConfig({ ...cfg, ...patch }); };
+      const row = (label: string, value: string, change: (d: -1 | 1) => void): HTMLElement => h('div', { class: 'row' },
+        h('div', { class: 'label', text: label }),
+        h('button', { class: 'btn arrow', text: '◀', onclick: () => change(-1) }),
+        h('div', { class: 'value', text: value, role: 'button', onclick: () => change(1) }),
+        h('button', { class: 'btn arrow', text: '▶', onclick: () => change(1) }));
+      const minTotal = Math.max(2, v.players.length);
+      const totals = Array.from({ length: MAX_PLAYERS - minTotal + 1 }, (_, i) => minTotal + i);
+      body.push(
+        row(t('setup.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
+        row(t('mp.fighters'), `${cfg.total} (${t('mp.bots', { n: cfg.total - v.players.length })})`, (d) => push({ total: totals[cycle(Math.max(0, totals.indexOf(cfg.total)), d, totals.length)]! })),
+        row(t('setup.fragLimit'), cfg.fragLimit === 0 ? t('common.none') : String(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
+        row(t('setup.skill'), skillName(cfg.skill), (d) => push({ skill: cycle(cfg.skill, d, 5) as RoomConfig['skill'] })),
+      );
+    } else {
+      body.push(
+        h('div', { class: 'help', text: `${dmMapName(cfg.mapId)} · ${t('mp.fighters')}: ${cfg.total} · ${t('setup.fragLimit')}: ${cfg.fragLimit === 0 ? t('common.none') : cfg.fragLimit}` }),
+        h('div', { class: 'help', text: t('mp.wait') }),
+      );
+    }
+    menu.append(win({
+      title: t('mp.title'),
+      onBack: handlers.mpLeave,
+      body,
+      footer: v.host ? [button(t('mp.start'), handlers.mpStart, 'primary')] : [button(t('mp.leave'), handlers.mpLeave, 'quiet')],
+    }));
+    open(menu);
+  }
+
+  /** Telegram share sheet when available, otherwise the Web Share API / clipboard. */
+  function shareRoom(code: string): void {
+    const text = t('mp.share.text', { code });
+    const url = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/realtournament_bot')}&text=${encodeURIComponent(text)}`;
+    const tg = (globalThis as { Telegram?: { WebApp?: { openTelegramLink?(u: string): void } } }).Telegram?.WebApp;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url);
+    else if (navigator.share) void navigator.share({ text }).catch(() => {});
+    else void navigator.clipboard?.writeText(text).catch(() => {});
   }
 
   function helpScreen(back: () => void, host: HTMLElement): void {
@@ -214,6 +316,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
 
   return {
     showMain: mainScreen,
+    showMultiplayer: multiplayerScreen,
+    showConnecting: connectingScreen,
+    showLobby: lobbyScreen,
     showPause(canOrder, currentOrder, note): void {
       clear(over);
       const chip = (text: string, onclick: () => void, cls = ''): HTMLElement => h('button', { class: `btn chip ${cls}`, text, onclick });
@@ -241,15 +346,15 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       open(over);
       setPausedUi(true);
     },
-    showResult(m): void {
+    showResult(m, online): void {
       clear(over);
       const rows: { color: number; score: number; side: number }[] = [];
       for (let i = 0; i < m.numSides; i++) rows.push({ side: i, score: m.score[i]!, color: m.sideColors[i]! });
       rows.sort((a, b) => b.score - a.score);
       const grid = h('div', { class: 'scores' });
       rows.forEach((r, i) => {
-        const name = m.gameMode === 1 ? (r.color === 0 ? t('result.blue') : t('result.red')) : colorName(r.color);
-        const you = r.side === 0 ? ` ${t('result.you')}` : '';
+        const name = m.gameMode === 1 ? (r.color === 0 ? t('result.blue') : t('result.red')) : (online?.names[r.side] ?? colorName(r.color));
+        const you = r.side === (online?.slot ?? 0) ? ` ${t('result.you')}` : '';
         const cls = i === 0 ? 'first' : '';
         grid.append(
           h('div', { class: cls }, h('span', { class: 'dot', style: `background:${SIDE_CSS[r.color] ?? '#fff'}` }), h('span', { text: `${name}${you}` })),

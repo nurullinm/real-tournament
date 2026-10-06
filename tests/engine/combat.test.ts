@@ -195,6 +195,7 @@ describe('pickup sounds', () => {
     const m = roomMatchWith({ pobjs: [{ type, x: 100, y: 160, data1: 10 }] });
     duel(m, 1);
     const f = m.fighters[0]!;
+    f.human = true;
     place(f, 100, 160, true);
     syncWindow(m, f);
     f.hp = 50;

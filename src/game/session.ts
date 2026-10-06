@@ -3,6 +3,7 @@ import type { GameMap } from '../assets/types';
 import type { Audio, SoundName } from '../audio/audio';
 import { eventVolume } from '../audio/spatial';
 import { botHooks, setAllyOrder, type AllyOrder } from '../bots';
+import type { NetTick } from '../net/lockstep';
 import { createMatch, matchResult, step, type MatchResult } from '../engine/match';
 import type { EngineAssets, InputState, Match, MatchOptions } from '../engine/types';
 import type { ButtonLayout, ButtonId, Insets } from '../input/layout';
@@ -59,10 +60,11 @@ export class GameSession {
   private lastHp = 100;
   private toast: { text: string; ticks: number } | null = null;
 
-  constructor(opts: MatchOptions, seed: number, private readonly deps: SessionDeps) {
+  /** `localSlot`: which fighter this device controls; `names`: player nicknames by slot (online matches only) */
+  constructor(opts: MatchOptions, seed: number, private readonly deps: SessionDeps, readonly localSlot = 0, readonly names: string[] = []) {
     this.match = createMatch(opts, deps.maps[opts.mapId]!, seed, deps.assets, botHooks);
     this.snapPrev();
-    const p = this.match.fighters[0]!;
+    const p = this.match.fighters[localSlot]!;
     this.cam = this.prevCam = computeCamera(cameraTarget(p, p.headsLeft, this.view), this.view, { w: this.match.mapWidth, h: this.match.mapHeight });
     this.lastHp = p.hp;
   }
@@ -78,15 +80,32 @@ export class GameSession {
 
   /** One 60 ms engine tick with the player's input. */
   tick(input: InputState): void {
+    this.advance(new Map([[this.localSlot, input]]));
+  }
+
+  /** One server-issued tick of an online match: everybody's input, plus humans who left (bots take over). */
+  tickNet(nt: NetTick): void {
+    const m = this.match;
+    for (const slot of nt.dropped) {
+      const f = m.fighters[slot];
+      if (f && f.human) {
+        f.human = false;
+        m.ai.findNearestNode(m, f);
+      }
+    }
+    this.advance(nt.inputs);
+  }
+
+  private advance(inputs: Map<number, InputState>): void {
     const m = this.match;
     this.snapPrev();
-    step(m, new Map([[0, input]]));
+    step(m, inputs);
     advanceWorldAnim(this.anim, m.tick);
     this.effects.advance();
     this.effects.spawn(m.events, m.tick);
-    const me = m.fighters[0]!;
+    const me = m.fighters[this.localSlot]!;
     for (const e of m.events) {
-      if (e.kind === 'sound') this.deps.audio.play(e.name as SoundName, eventVolume(me.x, me.y, e.x, e.y));
+      if (e.kind === 'sound' && (e.by === undefined || e.by === this.localSlot)) this.deps.audio.play(e.name as SoundName, eventVolume(me.x, me.y, e.x, e.y));
     }
     if (me.hp < this.lastHp) this.deps.platform.haptic(me.hp <= 0 ? 'medium' : 'light');
     this.lastHp = me.hp;
@@ -97,13 +116,31 @@ export class GameSession {
 
   private updateCamera(): void {
     const m = this.match;
-    const p = m.fighters[0]!;
+    const p = m.fighters[this.localSlot]!;
     const target = cameraTarget(p, p.headsLeft, this.view);
     this.prevCam = this.cam;
     const far = Math.abs(target.x - this.cam.x) > this.view.w || Math.abs(target.y - this.cam.y) > this.view.h;
     const next = far ? target : followCamera(this.cam, target, CAMERA_STEP_X, CAMERA_STEP_Y);
     this.cam = computeCamera(next, this.view, { w: m.mapWidth, h: m.mapHeight });
     if (far) this.prevCam = this.cam;
+  }
+
+  /** Nicknames above the other players' heads (online matches). */
+  private drawNames(ctx: CanvasRenderingContext2D): void {
+    if (this.names.length === 0) return;
+    ctx.font = '700 6px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    this.names.forEach((name, slot) => {
+      const f = this.match.fighters[slot];
+      if (!f || slot === this.localSlot || f.hp <= 0) return;
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.strokeText(name, f.x, f.y - 38);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(name, f.x, f.y - 38);
+    });
   }
 
   setAllyOrder(order: AllyOrder): void {
@@ -163,14 +200,15 @@ export class GameSession {
       drawActors(ctx, m, sprites, this.anim);
       this.effects.draw(ctx, sprites);
       drawTram(ctx, m, this.view, cam, sprites);
+      this.drawNames(ctx);
     } finally {
       m.fighters.forEach((fi, i) => { fi.x = saved[i]!.x; fi.y = saved[i]!.y; });
       carSaved.forEach(([i, y]) => { m.pobjs[i]!.y = y; });
       m.tram.x = tramSaved;
       m.projectiles.forEach((p, i) => { p.x = savedProj[i]!; });
     }
-    drawHud(ctx, m, 0, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
+    drawHud(ctx, m, this.localSlot, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
     if (this.toast) drawToast(ctx, this.toast.text, { w: f.w, h: f.h, dpr: f.dpr }, f.safe, f.safe.t + 74);
-    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr, this.allyOrder, m.fighters[0]!.currentWeapon);
+    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr, this.allyOrder, m.fighters[this.localSlot]!.currentWeapon);
   }
 }

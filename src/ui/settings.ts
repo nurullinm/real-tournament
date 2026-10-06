@@ -1,9 +1,12 @@
 import type { LangPref } from '../i18n';
 import type { MatchOptions } from '../engine/types';
+import { cleanName } from '../net/protocol';
 
 /** Defaults and ranges follow the original's option table (opt_options). */
 export interface GameSettings {
   language: LangPref;
+  /** shown to other players online; empty = use the Telegram name */
+  nickname: string;
   sound: boolean;
   violence: boolean;
   dm: { map: number; skill: number; bots: number; fragStep: number; color: number; noMedikits: boolean };
@@ -12,6 +15,7 @@ export interface GameSettings {
 
 export const defaultSettings = (): GameSettings => ({
   language: 'auto',
+  nickname: '',
   sound: true,
   violence: true,
   dm: { map: 0, skill: 2, bots: 1, fragStep: 0, color: 0, noMedikits: false },
@@ -26,11 +30,12 @@ const bool = (v: unknown, dflt: boolean): boolean => (typeof v === 'boolean' ? v
 export function sanitizeSettings(raw: unknown): GameSettings {
   const d = defaultSettings();
   if (typeof raw !== 'object' || raw === null) return d;
-  const r = raw as Record<string, Record<string, unknown> | undefined> & { sound?: unknown; violence?: unknown; language?: unknown };
+  const r = raw as Record<string, Record<string, unknown> | undefined> & { sound?: unknown; violence?: unknown; language?: unknown; nickname?: unknown };
   const dm = r.dm ?? {};
   const ctf = r.ctf ?? {};
   return {
     language: r.language === 'en' || r.language === 'ru' || r.language === 'auto' ? r.language : d.language,
+    nickname: cleanName(r.nickname, ''),
     sound: bool(r.sound, d.sound),
     violence: bool(r.violence, d.violence),
     dm: {

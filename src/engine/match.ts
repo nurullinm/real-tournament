@@ -14,6 +14,8 @@ import { buildBaseMatch } from './world';
 export function createMatch(opts: MatchOptions, map: GameMap, seed: number, assets: EngineAssets, ai?: AiHooks): Match {
   const m = buildBaseMatch(opts, map, seed, assets);
   if (ai) m.ai = ai;
+  const humans = Math.max(1, opts.humans ?? 1);
+  m.fighters.forEach((f, i) => { f.human = i < humans; });
   if (opts.mode === 'dm') setupDeathmatch(m);
   else setupCtf(m);
   return m;
@@ -61,7 +63,7 @@ export function step(m: Match, inputs: Map<number, InputState>): void {
     const given = inputs.get(n);
     if (given) applyWeaponInput(m, n, given);
     if (f.isCycling) moveCyclist(m, f, given ? inputToCmd(given) : m.ai.controlCyclist(m, f));
-    else moveFighter(m, f, given ? inputToCmd(given) : n === 0 ? 0 : m.ai.controlFighter(m, f));
+    else moveFighter(m, f, given ? inputToCmd(given) : f.human ? 0 : m.ai.controlFighter(m, f));
   }
   m.rays = m.rays.filter((r) => r.tick + 4 >= m.tick);
   stepProjectiles(m);

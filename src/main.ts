@@ -10,6 +10,11 @@ import { createLoop } from './game/loop';
 import { computeLayout, type Insets } from './input/layout';
 import { createKeyboardInput, mergeInputs } from './input/keyboard';
 import { createTouchInput } from './input/touch';
+import { inputToCmd } from './engine/match';
+import { connectRoom, type NetClient } from './net/client';
+import { Lockstep } from './net/lockstep';
+import { cleanName, randomCode, type RoomConfig } from './net/protocol';
+import type { LobbyView } from './ui/screens';
 import { getLang, onLangChange, resolveLang, setLang, t } from './i18n';
 import { initPlatform } from './platform/telegram';
 import { createUi } from './ui/screens';
@@ -107,8 +112,93 @@ async function boot(): Promise<void> {
 
   const frameInfo = (): FrameInfo => ({ ...css, safe, layout, held: touch.held(), stick: touch.stick(), showControls: true });
 
+  // ---- online play (lockstep over a Cloudflare room) ----
+  let net: NetClient | null = null;
+  let lockstep: Lockstep | null = null;
+  let online = false;
+  let mySlot = 0;
+  let roomCode = '';
+  let lobbyView: LobbyView | null = null;
+  let lastCmd = 0;
+  const tgInitData = (): string => (globalThis as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData ?? '';
+  const tgName = (): string => (globalThis as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { first_name?: string } } } } }).Telegram?.WebApp?.initDataUnsafe?.user?.first_name ?? '';
+  const myName = (): string => cleanName(settings.nickname || tgName(), 'Player');
+
+  function leaveRoom(): void {
+    net?.close();
+    net = null;
+    lockstep = null;
+    online = false;
+    lobbyView = null;
+  }
+  function openRoom(code: string, create: boolean): void {
+    leaveRoom();
+    roomCode = code;
+    saveSettings(settings);
+    ui.showConnecting();
+    net = connectRoom(code, { t: 'hello', name: myName(), initData: tgInitData(), create }, {
+      message: (m) => {
+        switch (m.t) {
+          case 'welcome': mySlot = m.slot; break;
+          case 'lobby':
+            lobbyView = { code: roomCode, players: m.players, cfg: m.cfg, slot: mySlot, host: m.players.some((p) => p.slot === mySlot && p.host) };
+            if (!session) ui.showLobby(lobbyView);
+            break;
+          case 'start': startOnline(m); break;
+          case 'tick': lockstep?.push(m.n, m.i, m.d); break;
+          case 'error': leaveRoom(); ui.showMultiplayer(t(`mp.err.${m.reason}`)); break;
+        }
+      },
+      closed: () => {
+        if (!net) return;
+        const inMatch = online && session && !session.result.over;
+        leaveRoom();
+        if (inMatch) toMenu();
+        ui.showMultiplayer(t('mp.err.net'));
+      },
+    });
+  }
+  function startOnline(m: { seed: number; cfg: RoomConfig; humans: number; names: string[]; slot: number }): void {
+    const opts = {
+      mapId: m.cfg.mapId, mode: 'dm' as const, skill: m.cfg.skill, bots: m.cfg.total - 1, fragLimit: m.cfg.fragLimit,
+      noMedikits: m.cfg.noMedikits, violence: settings.violence, team: false, playerColor: 0, humans: m.humans,
+    };
+    mySlot = m.slot;
+    lockstep = new Lockstep(m.humans);
+    online = true;
+    lastCmd = 0;
+    session = new GameSession(opts, m.seed, { sprites, audio, platform, assets, maps }, m.slot, m.names);
+    audio.playMusic(musicForMap(opts.mapId));
+    ui.hide();
+    ui.setPauseButton(true);
+    resize();
+    loop.start();
+  }
+  /** Sends input only when it changes (held buttons) or carries a one-shot weapon pulse. */
+  function sendInput(): ReturnType<typeof mergeInputs> {
+    const input = mergeInputs(touch.state(), keyboard.state());
+    const c = inputToCmd(input);
+    if (c !== lastCmd || input.weaponSelect !== -1 || input.weaponDelta !== 0) {
+      lastCmd = c;
+      net?.send({ t: 'in', c, ws: input.weaponSelect, wd: input.weaponDelta });
+    }
+    return input;
+  }
+
   const tickOnce = (): void => {
     if (!session) return;
+    if (online && lockstep) {
+      sendInput();
+      // after a stall (background, slow network) catch up faster than real time
+      const n = lockstep.backlog > 4 ? Math.min(lockstep.backlog - 2, 12) : 1;
+      for (let i = 0; i < n; i++) {
+        const nt = lockstep.pull();
+        if (!nt) break;
+        session.tickNet(nt);
+        if (session.result.over) { net?.send({ t: 'over' }); finishMatch(); return; }
+      }
+      return;
+    }
     session.tick(mergeInputs(touch.state(), keyboard.state()));
     if (session.result.over) finishMatch();
   };
@@ -132,6 +222,7 @@ async function boot(): Promise<void> {
       touch.releaseAll();
       keyboard.releaseAll();
       autoPaused = true;
+      if (online) { lastCmd = 0; net?.send({ t: 'in', c: 0, ws: -1, wd: 0 }); } // don't keep running/firing while away
     }
     audio.suspend();
   }
@@ -145,7 +236,8 @@ async function boot(): Promise<void> {
 
   function pauseMenu(): void {
     if (!session) return;
-    loop.pause();
+    // an online match runs on: the menu opens over the live game
+    if (!online) loop.pause();
     touch.releaseAll();
     keyboard.releaseAll();
     ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0, teamFragLine(session.match, 0));
@@ -155,9 +247,11 @@ async function boot(): Promise<void> {
     loop.pause();
     touch.releaseAll();
     ui.setPauseButton(false);
-    ui.showResult(session.match);
+    ui.showResult(session.match, online ? { names: session.names, slot: session.localSlot } : undefined);
+    if (online) leaveRoom();
   }
   function toMenu(): void {
+    leaveRoom();
     session = null;
     autoPaused = false;
     loop.pause();
@@ -189,6 +283,11 @@ async function boot(): Promise<void> {
       applyLanguage();
     },
     allyOrder: (o) => session?.setAllyOrder(o),
+    mpCreate: () => openRoom(randomCode(), true),
+    mpJoin: (code) => openRoom(code, false),
+    mpLeave: () => { leaveRoom(); ui.showMultiplayer(); },
+    mpConfig: (cfg) => net?.send({ t: 'cfg', cfg }),
+    mpStart: () => net?.send({ t: 'start' }),
   });
 
   window.addEventListener('pointerdown', () => { void platform.lockLandscape(); }, { once: true });

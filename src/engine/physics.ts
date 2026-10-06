@@ -40,7 +40,7 @@ export function moveFighterUpDown(m: Match, f: Fighter, dy: number): void {
   }
   if ((cellAt(m, f.v, f.u) & 2) !== 0) {
     setY(f, f.y & ~0xf);
-    if (f.number !== 0) m.ai.catchGround(m, f);
+    if (!f.human) m.ai.catchGround(m, f);
   }
 }
 
@@ -66,7 +66,7 @@ export function stepMovement(m: Match, f: Fighter, n: number): boolean {
       cycleFrame(f, 25, 36);
       f.headsLeft = left;
       const bumped = moveFighterLeftRight(m, f, f.xspeed, 25);
-      if (bumped && f.number !== 0) m.ai.findNearestNode(m, f);
+      if (bumped && !f.human) m.ai.findNearestNode(m, f);
       walked = true;
     } else {
       cycleFrame(f, 0, 24);

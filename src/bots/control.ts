@@ -154,7 +154,7 @@ function setCycleDestNode(m: Match, f: Fighter, color: number): void {
 /** AI_SetCycleDestination */
 export function setCycleDestination(m: Match, f: Fighter): void {
   const c = m.cycle;
-  if (f.number === 0 || !c) return;
+  if (f.human || !c) return;
   if (f.isCarrying) {
     setCycleDestNode(m, f, f.color);
   } else if (f.aiOrder === 1) {

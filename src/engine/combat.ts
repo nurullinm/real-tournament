@@ -40,7 +40,7 @@ export function pickTarget(m: Match, shooter: Fighter, x1: number, x2: number, y
 /** Pending weapon switch at the start of the fighter's step. */
 export function applyPendingWeapon(m: Match, f: Fighter): void {
   if (f.pendingWeapon < 0 || f.weaponState !== 0) return;
-  if (f.pendingWeapon === 0 && !(f.currentWeapon === 0 && f.number !== 0)) emitSound(m, 'spinup', f.x, f.y);
+  if (f.pendingWeapon === 0 && !(f.currentWeapon === 0 && !f.human)) emitSound(m, 'spinup', f.x, f.y);
   if (canShoot(f, f.pendingWeapon)) f.currentWeapon = f.pendingWeapon;
   f.pendingWeapon = -1;
 }

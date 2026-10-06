@@ -132,3 +132,14 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .ui.menu .col { gap: 8px; }
 .fragline { color: var(--muted); font-size: 12px; font-weight: 600; margin: 0 0 2px; }
 .win-head .head-note { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* multiplayer */
+.input { flex: 1 1 auto; min-width: 0; background: #15184a; color: var(--ink, #fff); border: 2px solid var(--line); border-radius: 10px; padding: 9px 10px; font: inherit; font-size: 15px; }
+.input.code { flex: 0 0 96px; text-align: center; text-transform: uppercase; letter-spacing: 0.18em; }
+.mp-msg { min-height: 18px; color: #ff8a8a; font-size: 13px; text-align: center; }
+.code-big { text-align: center; font-size: 30px; font-weight: 800; letter-spacing: 0.22em; color: var(--accent); }
+.plist { display: flex; flex-direction: column; gap: 6px; }
+.pl { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: #15184a; }
+.pl.me { outline: 1px solid var(--accent); }
+.pl .pname { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl .ptag { color: var(--muted); font-size: 12px; }
