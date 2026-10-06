@@ -105,6 +105,9 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     }
   }
 
+  let stale = false; // the OS may have broken output (lock screen, interruption): start over with a fresh context
+  let verified = false; // a source has been started inside a user gesture on the current context
+
   function startMusic(): void {
     if (!ctx || !wanted || !enabled || suspended || !isRunning()) return;
     if (playing?.id === wanted) return;
@@ -167,10 +170,10 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     p.gain.gain.setTargetAtTime(p.level, t + 0.5, 0.25);
   }
 
-  /** Brings the context back after an interruption (iOS 'interrupted', lock screen, Telegram minimise); recreates it if the OS closed it. */
+  /** Brings the context back after an interruption (iOS 'interrupted', lock screen, Telegram minimise). */
   async function ensureRunning(): Promise<void> {
     if (!ctx) return;
-    if (ctx.state === 'closed') rebuild();
+    if (stale || ctx.state === 'closed') rebuild();
     try {
       if (ctx && ctx.state !== 'running') await ctx.resume();
     } catch {
@@ -179,16 +182,24 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     startMusic();
   }
 
-  /** A closed context cannot be reopened: build a fresh one and re-render the sounds. */
+  /**
+   * After a lock screen iOS can leave a context that reports "running" but is silent, and a closed one cannot be reopened:
+   * build a fresh context. Rendered AudioBuffers are not tied to a context, so they are reused - no re-synthesis.
+   */
   function rebuild(): void {
-    if (ctx) ctx.onstatechange = null;
-    ctx = null;
-    started = false;
-    effects.clear();
-    music.clear();
-    musicLoading.clear();
+    const old = ctx;
+    if (old) {
+      old.onstatechange = null;
+      try { old.close?.()?.catch(() => {}); } catch { /* ignore */ }
+    }
+    stopMusic(0);
     playing = null;
-    api.init();
+    voices = 0;
+    stale = false;
+    verified = false;
+    ctx = d.createContext();
+    ctx.onstatechange = () => { if (ctx && ctx.state !== 'running') stale = true; startMusic(); };
+    void ctx.resume().then(() => startMusic(), () => {});
   }
 
   const api: Audio = {
@@ -196,7 +207,7 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
       if (started) return;
       started = true;
       ctx = d.createContext();
-      ctx.onstatechange = () => startMusic();
+      ctx.onstatechange = () => { if (ctx && ctx.state !== 'running') stale = true; startMusic(); };
       // some webviews allow audio without a gesture: try right away, otherwise the first touch does it
       void ctx.resume().then(() => startMusic(), () => {});
       void renderEffects();
@@ -205,8 +216,8 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     async unlock(): Promise<void> {
       api.init();
       if (!ctx) return;
-      if (ctx.state === 'closed') rebuild();
-      if (ctx.state === 'running' && !suspended) { startMusic(); return; } // already fine: touches stay cheap
+      if (stale || ctx.state === 'closed') rebuild();
+      if (ctx.state === 'running' && !suspended && verified) { startMusic(); return; } // already fine: touches stay cheap
       suspended = false;
       try {
         // iOS: a started (silent) source inside the gesture is what really unlocks output
@@ -218,6 +229,7 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
         /* not essential */
       }
       await ctx.resume();
+      verified = ctx.state === 'running';
       startMusic();
     },
     get running(): boolean {
@@ -260,6 +272,7 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     },
     suspend(): void {
       suspended = true;
+      stale = true;
       stopMusic(0.05);
       void ctx?.suspend();
     },
@@ -269,7 +282,7 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     },
     poke(): void {
       if (!started || suspended) return; // paused on purpose (hidden, minimised, portrait)
-      if (!isRunning()) void ensureRunning();
+      if (stale || !isRunning()) void ensureRunning();
     },
   };
   return api;

@@ -254,3 +254,26 @@ describe('recovery after the OS interrupts audio (screen lock)', () => {
     expect(audio.running).toBe(true);
   });
 });
+
+describe('fresh context after a lock screen', () => {
+  it('suspend() then resume() builds a new context and reuses the rendered sounds', async () => {
+    const made: ReturnType<typeof fakeContext>[] = [];
+    const audio = createAudio({
+      createContext: () => { const f = fakeContext(true); made.push(f); return f.ctx; },
+      now: () => 1e9 + made.length * 1e6, yield: async () => {}, renderMusic: tinyLoop,
+    });
+    audio.playMusic('menu');
+    audio.init();
+    for (let i = 0; i < 30; i++) await Promise.resolve();
+    expect(made).toHaveLength(1);
+    audio.suspend();
+    audio.resume();
+    for (let i = 0; i < 30; i++) await Promise.resolve();
+    expect(made).toHaveLength(2);
+    expect(made[1]!.buffers).toHaveLength(0); // nothing was re-synthesised
+    await audio.unlock();
+    audio.play('laser');
+    expect(made[1]!.started.filter((s) => !s.loop).length).toBeGreaterThanOrEqual(2); // unlock blip + laser
+    expect(made[1]!.started.some((s) => s.loop)).toBe(true);
+  });
+});
