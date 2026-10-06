@@ -8,14 +8,14 @@ export type SendMessage = (token: string, body: Record<string, unknown>) => Prom
 
 const TEXTS = {
   ru: {
-    text: '🎮 Real Tournament — культовый мобильный шутер 2012 года, теперь в Telegram.\n\n'
-      + '• Дэтматч и захват флага\n• Одиночная игра против ботов или онлайн с друзьями (до 4 игроков)\n• Играйте с телефоном в горизонтальном положении\n\n'
+    text: '🎮 Real Tournament — культовый мобильный шутер, теперь в Telegram.\n\n'
+      + '• Дэтматч / Захват флага\n• Одиночная / Мультиплеер (до 4 игроков)\n\n'
       + 'Нажмите «Играть», чтобы начать.',
     button: '🎮 Играть',
   },
   en: {
-    text: '🎮 Real Tournament — the cult 2012 mobile shooter, now in Telegram.\n\n'
-      + '• Deathmatch and capture the flag\n• Solo against bots, or online with friends (up to 4 players)\n• Play with your phone in landscape\n\n'
+    text: '🎮 Real Tournament — the cult mobile shooter, now in Telegram.\n\n'
+      + '• Deathmatch / Capture the flag\n• Solo / Multiplayer (up to 4 players)\n\n'
       + 'Tap “Play” to start.',
     button: '🎮 Play',
   },

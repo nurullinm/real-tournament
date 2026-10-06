@@ -25,6 +25,7 @@ describe('Telegram webhook', () => {
     expect(en.text).toContain('Real Tournament');
     expect(en.text).toContain('Deathmatch');
     expect(ru.text).toContain('Дэтматч');
+    expect(ru.text).toBe('🎮 Real Tournament — культовый мобильный шутер, теперь в Telegram.\n\n• Дэтматч / Захват флага\n• Одиночная / Мультиплеер (до 4 игроков)\n\nНажмите «Играть», чтобы начать.');
     expect(en.text.length).toBeLessThan(400);
   });
 
