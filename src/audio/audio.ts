@@ -6,7 +6,7 @@ export { musicForMap } from './synth/music';
 /** Engine events use these names; `itemrespawn` is intentionally silent. */
 export type SoundName = EffectName | 'itemrespawn';
 
-const COOLDOWN_MS: Partial<Record<SoundName, number>> = { laser: 60, saw: 200, explosion: 80, die: 120, diehard: 200, order: 150 };
+const COOLDOWN_MS: Partial<Record<SoundName, number>> = { laser: 60, saw: 200, explosion: 80, die: 120, diehard: 200, order: 150, ammo: 120, weapon: 120 };
 const MAX_VOICES = 10;
 const MUSIC_LEVEL_MENU = 0.5;
 const MUSIC_LEVEL_GAME = 0.3;
@@ -31,6 +31,7 @@ export interface AudioContextLike {
   onstatechange: (() => void) | null;
   resume(): Promise<void>;
   suspend(): Promise<void>;
+  close?(): Promise<void>;
   createBuffer(channels: number, length: number, sampleRate: number): BufferLike;
   createBufferSource(): SourceLike;
   createGain(): GainNodeLike;
@@ -57,6 +58,8 @@ export interface Audio {
   setEnabled(on: boolean): void;
   suspend(): void;
   resume(): void;
+  /** Cheap health check, safe to call often (timer, focus, visibility): revives audio that the OS interrupted (screen lock, call). */
+  poke(): void;
 }
 
 export function createAudio(deps?: Partial<AudioDeps>): Audio {
@@ -164,6 +167,30 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     p.gain.gain.setTargetAtTime(p.level, t + 0.5, 0.25);
   }
 
+  /** Brings the context back after an interruption (iOS 'interrupted', lock screen, Telegram minimise); recreates it if the OS closed it. */
+  async function ensureRunning(): Promise<void> {
+    if (!ctx) return;
+    if (ctx.state === 'closed') rebuild();
+    try {
+      if (ctx && ctx.state !== 'running') await ctx.resume();
+    } catch {
+      /* the OS wants a user gesture first: the next touch/key calls unlock() */
+    }
+    startMusic();
+  }
+
+  /** A closed context cannot be reopened: build a fresh one and re-render the sounds. */
+  function rebuild(): void {
+    if (ctx) ctx.onstatechange = null;
+    ctx = null;
+    started = false;
+    effects.clear();
+    music.clear();
+    musicLoading.clear();
+    playing = null;
+    api.init();
+  }
+
   const api: Audio = {
     init(): void {
       if (started) return;
@@ -178,6 +205,8 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     async unlock(): Promise<void> {
       api.init();
       if (!ctx) return;
+      if (ctx.state === 'closed') rebuild();
+      if (ctx.state === 'running' && !suspended) { startMusic(); return; } // already fine: touches stay cheap
       suspended = false;
       try {
         // iOS: a started (silent) source inside the gesture is what really unlocks output
@@ -236,8 +265,11 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     },
     resume(): void {
       suspended = false;
-      void ctx?.resume().then(() => startMusic(), () => {});
-      startMusic();
+      void ensureRunning();
+    },
+    poke(): void {
+      if (!started || suspended) return; // paused on purpose (hidden, minimised, portrait)
+      if (!isRunning()) void ensureRunning();
     },
   };
   return api;

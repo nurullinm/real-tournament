@@ -32,7 +32,7 @@ function recorder() {
 
 const audioLog: string[] = [];
 const audio: Audio = {
-  init() {}, unlock: async () => {}, running: true, nowPlaying: null, play: (n) => { audioLog.push(n); }, playMusic: () => {}, setEnabled: () => {}, suspend: () => {}, resume: () => {},
+  init() {}, unlock: async () => {}, running: true, nowPlaying: null, play: (n) => { audioLog.push(n); }, playMusic: () => {}, setEnabled: () => {}, suspend: () => {}, resume: () => {}, poke: () => {},
 };
 const haptics: string[] = [];
 const platform = { isTelegram: false, haptic: (k: string) => { haptics.push(k); } } as unknown as Platform;
@@ -103,7 +103,7 @@ describe('match lifecycle', () => {
     audioLog.length = 0;
     haptics.length = 0;
     const s = new GameSession({ ...CTF_OPTS }, 1, deps);
-    expect(s.allyOrder).toBe(0);
+    expect(s.allyOrder).toBe(2); // freelance by default
     s.setAllyOrder(1);
     expect(s.allyOrder).toBe(1);
     expect(audioLog).toContain('order');

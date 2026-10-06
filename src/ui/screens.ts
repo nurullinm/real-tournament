@@ -1,7 +1,7 @@
 import type { AllyOrder } from '../bots';
 import type { Match } from '../engine/types';
 import { botName, colorName, ctfMapName, dmMapName, onLangChange, orderLabel, skillName, t, type LangPref } from '../i18n';
-import { teamFragItems } from '../render/hud';
+import { teamFragLine } from '../game/stats';
 import { clear, h } from './dom';
 import { cycle, type GameSettings } from './settings';
 
@@ -21,7 +21,8 @@ const LANG_PREFS: readonly LangPref[] = ['auto', 'en', 'ru'];
 
 export interface Ui {
   showMain(canContinue: boolean): void;
-  showPause(canOrder: boolean, currentOrder: number): void;
+  /** `note` is shown at the right of the window header (e.g. the team's frags) */
+  showPause(canOrder: boolean, currentOrder: number, note?: string): void;
   showResult(m: Match): void;
   hide(): void;
   /** true while any menu/overlay is covering the game */
@@ -43,6 +44,8 @@ interface WindowParts {
   small?: boolean;
   /** extra class for the body (e.g. spaced sections) */
   bodyClass?: string;
+  /** small muted text at the right of the header */
+  note?: string;
 }
 
 export function createUi(root: HTMLElement, settings: GameSettings, handlers: UiHandlers): Ui {
@@ -83,6 +86,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     const head = h('div', { class: 'win-head' });
     if (p.onBack) head.append(h('button', { class: 'back', 'aria-label': t('common.back'), onclick: p.onBack }));
     head.append(h('h2', { text: p.title }));
+    if (p.note) head.append(h('div', { class: 'head-note', text: p.note }));
     const el = h('div', { class: `win${p.small ? ' small' : ''}` }, head, h('div', { class: `win-body${p.bodyClass ? ` ${p.bodyClass}` : ''}` }, ...p.body));
     if (p.footer?.length) el.append(h('div', { class: 'win-foot' }, ...p.footer));
     return el;
@@ -210,7 +214,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
 
   return {
     showMain: mainScreen,
-    showPause(canOrder, currentOrder): void {
+    showPause(canOrder, currentOrder, note): void {
       clear(over);
       const chip = (text: string, onclick: () => void, cls = ''): HTMLElement => h('button', { class: `btn chip ${cls}`, text, onclick });
       const body: HTMLElement[] = [];
@@ -225,11 +229,12 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         sound.textContent = soundText();
         save();
       });
-      body.push(h('div', { class: 'prow' }, sound, chip(t('menu.help'), () => helpScreen(() => this.showPause(canOrder, currentOrder), over))));
+      body.push(h('div', { class: 'prow' }, sound, chip(t('menu.help'), () => helpScreen(() => this.showPause(canOrder, currentOrder, note), over))));
       over.append(win({
         title: t('pause.title'),
         onBack: handlers.resume,
         bodyClass: 'pause',
+        note,
         body,
         footer: [button(t('pause.end'), handlers.endGame, 'quiet')],
       }));
@@ -252,10 +257,8 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         );
       });
       const body: HTMLElement[] = [grid];
-      if (m.gameMode === 1) {
-        const frags = teamFragItems(m, 0).map((i) => `${i.label} ${i.frags}`).join('  ·  ');
-        body.push(h('div', { class: 'fragline', text: `${t('result.frags')}: ${frags}` }));
-      }
+      const fragLine = teamFragLine(m, 0);
+      if (fragLine) body.push(h('div', { class: 'fragline', text: fragLine }));
       setPausedUi(false);
       over.append(win({ title: t('result.title'), body, footer: [button(t('common.menu'), handlers.endGame, 'primary')], small: true }));
       open(over);

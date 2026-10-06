@@ -88,7 +88,8 @@ export function scanPickups(m: Match, f: Fighter, cmd: number): void {
     p.data3 = m.tick + RESPAWN_TICKS;
     p.type |= 0x40;
     m.respawnQueue.push(i);
-    if (f.number === 0) emitSound(m, 'pickup', f.x, f.y);
+    // weapons and ammo clack like a reload, health/armor keep the soft chime
+    if (f.number === 0) emitSound(m, type === 4 ? 'weapon' : type === 6 || type === 8 ? 'ammo' : 'pickup', f.x, f.y);
   }
 }
 

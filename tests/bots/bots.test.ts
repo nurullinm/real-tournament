@@ -68,6 +68,7 @@ describe('CTF behaviour', () => {
     for (const seed of [1, 2, 3]) {
       const m = createMatch(CTF_OPTS, REAL_MAPS[7]!, seed, REAL_ASSETS, botHooks);
       const ally = m.fighters[1]!;
+      setAllyOrder(m, 0); // defend the base (the default is freelance)
       let outside = 0;
       let total = 0;
       for (let t = 0; t < 2000; t++) {
@@ -82,7 +83,7 @@ describe('CTF behaviour', () => {
 
   it('the player can send the ally on the attack', () => {
     const m = createMatch(CTF_OPTS, REAL_MAPS[7]!, 4, REAL_ASSETS, botHooks);
-    expect(m.fighters[1]!.aiOrder).toBe(0);
+    expect(m.fighters[1]!.aiOrder).toBe(2); // freelance by default
     setAllyOrder(m, 1);
     expect(m.fighters[1]!.aiOrder).toBe(1);
   });

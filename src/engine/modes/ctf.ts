@@ -18,7 +18,8 @@ export function setupCtf(m: Match): void {
     f.flagBaseRight = color === 0 ? 105 : 117;
     f.starts = color === 0 ? m.map.dmBlue : m.map.dmRed;
     f.side = i >> 1;
-    f.aiOrder = 0;
+    // the player's ally (fighter 1) starts on "Freelance"; the enemy team is commanded by the strategist, defending first
+    f.aiOrder = i === 1 ? 2 : 0;
   }
   if (m.numFighters === 1) {
     respawnFighter(m, m.fighters[0]!);

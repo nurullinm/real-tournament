@@ -33,7 +33,7 @@ const rms = (x: Float32Array) => Math.sqrt(x.reduce((a, v) => a + v * v, 0) / x.
 
 const DURATION: Record<EffectName, [number, number]> = {
   laser: [0.15, 0.4], bazooka: [0.4, 0.9], explosion: [1.0, 2.2], saw: [0.4, 0.9], spinup: [1.2, 2.0], pickup: [0.25, 0.6],
-  respawn: [0.6, 1.3], die: [0.35, 0.9], diehard: [0.5, 1.2], alarm: [0.9, 1.7], capture: [0.9, 1.8], order: [0.25, 0.6],
+  respawn: [0.6, 1.3], die: [0.35, 0.9], diehard: [0.5, 1.2], alarm: [0.9, 1.7], capture: [0.9, 1.8], order: [0.25, 0.6], ammo: [0.3, 0.8], weapon: [0.5, 1.1],
 };
 
 describe('sound effects (44.1 kHz synth)', () => {
@@ -122,6 +122,42 @@ describe('sound effects (44.1 kHz synth)', () => {
 
     it('start-up and cut are clearly different sounds and neither is a plain sawtooth', () => {
       for (const n of ['saw', 'spinup'] as const) expect(bandShare(get(n), SR, 0, 60)).toBeLessThan(0.1);
+    });
+  });
+
+  describe('reload pickups', () => {
+    /** number of separate sharp hits: a hit is a sudden jump of the 2 ms RMS envelope over what came just before it */
+    const hits = (b: Float32Array) => {
+      const win = Math.round(0.002 * SR); const env: number[] = [];
+      for (let i = 0; i + win <= b.length; i += win) env.push(rms(b.subarray(i, i + win)));
+      const max = Math.max(...env); let n = 0; let cooldown = 0;
+      env.forEach((v, i) => {
+        const before = env.slice(Math.max(0, i - 6), i).reduce((a, x) => a + x, 0) / Math.max(1, Math.min(6, i));
+        if (cooldown > 0) { cooldown--; return; }
+        if (v > max * 0.12 && v > before * 2.2) { n++; cooldown = 8; }
+      });
+      return n;
+    };
+
+    it('the ammo pickup is a mechanical sequence of hard hits (magazine in, bolt racked, release)', () => {
+      expect(hits(get('ammo'))).toBeGreaterThanOrEqual(2);
+      expect(bandShare(get('ammo'), SR, 100, 250)).toBeGreaterThan(0.02); // body thump
+      expect(bandShare(get('ammo'), SR, 1500, 9000)).toBeGreaterThan(0.06); // metallic click
+    });
+
+    it('the weapon pickup is heavier and longer: thunderous slam plus several latch/ratchet hits', () => {
+      expect(hits(get('weapon'))).toBeGreaterThanOrEqual(3);
+      expect(bandShare(get('weapon'), SR, 40, 200)).toBeGreaterThan(0.15); // deep
+      expect(get('weapon').length).toBeGreaterThan(get('ammo').length);
+      expect(rms(get('weapon').subarray(0, 4000))).toBeGreaterThan(rms(get('ammo').subarray(0, 4000)) * 0.9);
+    });
+
+    it('both are punchy and unlike the soft health/armor chime', () => {
+      for (const n of ['ammo', 'weapon'] as const) {
+        expect(peakOf(get(n))).toBeGreaterThan(0.85);
+        expect(bandShare(get(n), SR, 700, 1500)).toBeLessThan(0.7); // not a tone
+      }
+      expect(rms(get('weapon').subarray(0, 2000))).toBeGreaterThan(rms(get('pickup').subarray(0, 2000)));
     });
   });
 

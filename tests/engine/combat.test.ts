@@ -189,3 +189,26 @@ describe('pickups', () => {
     expect(f.pendingWeapon).toBe(2);
   });
 });
+
+describe('pickup sounds', () => {
+  const sound = (type: number) => {
+    const m = roomMatchWith({ pobjs: [{ type, x: 100, y: 160, data1: 10 }] });
+    duel(m, 1);
+    const f = m.fighters[0]!;
+    place(f, 100, 160, true);
+    syncWindow(m, f);
+    f.hp = 50;
+    f.armor = 0;
+    f.ammo[1] = 0;
+    f.ammo[2] = 0;
+    scanPickups(m, f, 0);
+    return m.events.filter((e) => e.kind === 'sound').map((e) => (e as { name: string }).name);
+  };
+  it('weapons and ammo sound like reloading, health and armor like a soft chime', () => {
+    expect(sound(4)).toEqual(['weapon']); // bazooka
+    expect(sound(6)).toEqual(['ammo']); // rocket
+    expect(sound(8)).toEqual(['ammo']); // battery
+    expect(sound(5)).toEqual(['pickup']); // medikit
+    expect(sound(7)).toEqual(['pickup']); // armor
+  });
+});

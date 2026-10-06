@@ -5,6 +5,7 @@ import { createAudio, musicForMap } from './audio/audio';
 import { computeMuzzle } from './engine/muzzle';
 import type { EngineAssets } from './engine/types';
 import { GameSession, TICK_HZ, type FrameInfo } from './game/session';
+import { teamFragLine } from './game/stats';
 import { createLoop } from './game/loop';
 import { computeLayout, type Insets } from './input/layout';
 import { createKeyboardInput, mergeInputs } from './input/keyboard';
@@ -42,12 +43,16 @@ async function boot(): Promise<void> {
   audio.setEnabled(settings.sound);
   audio.playMusic('menu');
   audio.init();
-  const unlockAudio = (): void => {
-    void audio.unlock().then(() => {
-      if (audio.running) for (const g of GESTURES) window.removeEventListener(g, unlockAudio, true);
-    });
-  };
+  // These listeners stay for the whole session: after a screen lock or a call the OS interrupts audio again,
+  // and the next touch must be able to revive it (unlock() is a no-op while sound is already running).
+  const unlockAudio = (): void => { void audio.unlock(); };
   for (const g of GESTURES) window.addEventListener(g, unlockAudio, { capture: true, passive: true });
+  // gesture-free recovery attempts: coming back to the app, regaining focus, and a slow watchdog
+  const poke = (): void => audio.poke();
+  window.addEventListener('focus', poke);
+  window.addEventListener('pageshow', poke);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poke(); });
+  setInterval(poke, 2000);
 
   const platform = await initPlatform();
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -134,7 +139,7 @@ async function boot(): Promise<void> {
     loop.pause();
     touch.releaseAll();
     keyboard.releaseAll();
-    ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0);
+    ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0, teamFragLine(session.match, 0));
   }
   function finishMatch(): void {
     if (!session) return;

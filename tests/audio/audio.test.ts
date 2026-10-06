@@ -227,3 +227,30 @@ describe('eventVolume', () => {
     expect(eventVolume(0, 0, 5000, 0)).toBe(0.12);
   });
 });
+
+describe('recovery after the OS interrupts audio (screen lock)', () => {
+  it('poke() resumes an interrupted context and restarts music', async () => {
+    const { audio, ctx, started, settle } = make(true);
+    audio.playMusic('menu');
+    audio.init();
+    await settle();
+    expect(audio.running).toBe(true);
+    ctx.setState('interrupted');
+    expect(audio.running).toBe(false);
+    audio.poke();
+    await settle();
+    expect(audio.running).toBe(true);
+    expect(started.filter((s) => s.loop).length).toBeGreaterThanOrEqual(1);
+    audio.play('laser');
+  });
+
+  it('rebuilds a closed context', async () => {
+    const { audio, ctx, settle } = make(true);
+    audio.init();
+    await settle();
+    ctx.setState('closed');
+    await audio.unlock();
+    await settle();
+    expect(audio.running).toBe(true);
+  });
+});

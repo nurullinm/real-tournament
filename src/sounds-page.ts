@@ -5,7 +5,7 @@ import { MUSIC_IDS, THEMES } from './audio/synth/music';
 /** Audition page: every effect and every music loop on a button, to judge the sound on a real device. */
 const LABELS: Record<string, string> = {
   laser: 'Лазер', bazooka: 'Базука', explosion: 'Взрыв', saw: 'Пила', spinup: 'Раскрутка пилы', pickup: 'Подбор предмета',
-  respawn: 'Возрождение', die: 'Смерть', diehard: 'Тяжёлая смерть', alarm: 'Тревога флага', capture: 'Захват флага', order: 'Приказ союзнику',
+  respawn: 'Возрождение', die: 'Смерть', diehard: 'Тяжёлая смерть', alarm: 'Тревога флага', capture: 'Захват флага', order: 'Приказ союзнику', ammo: 'Подбор патронов (перезарядка)', weapon: 'Подбор оружия (затвор)',
   menu: 'Меню', dm0: 'Дэтматч 1: Два этажа', dm1: 'Дэтматч 2: Царь горы', dm2: 'Дэтматч 3: Безбилетники', dm3: 'Дэтматч 4: Остров свободы',
   dm4: 'Дэтматч 5: Циклодром', dm5: 'Дэтматч 6: Небоскрёб', dm6: 'Дэтматч 7: Негде спрятаться', ctf0: 'Флаг 1: Диверсанты',
   ctf1: 'Флаг 2: Хаос и порядок', ctf2: 'Флаг 3: Две башни', ctf3: 'Флаг 4: Технопарк', ctf4: 'Флаг 5: Магистраль',

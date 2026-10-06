@@ -1,7 +1,6 @@
 import type { ButtonId, ButtonLayout, Insets } from '../input/layout';
 import type { StickState } from '../input/touch';
 import { orderShort, t, weaponName } from '../i18n';
-import type { Fighter } from '../engine/types';
 import type { Match } from '../engine/types';
 
 export interface Viewport {
@@ -25,45 +24,6 @@ function text(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, al
   ctx.textAlign = align;
   ctx.fillStyle = '#fff';
   ctx.fillText(s, x, y);
-}
-
-/** "You 3 · Ally 1": personal frags of everybody on the player's team (player first). */
-export function teamFragItems(m: Match, playerId: number): { label: string; frags: number }[] {
-  const me = m.fighters[playerId]!;
-  const mates = m.fighters.slice(0, m.numFighters).filter((f: Fighter) => f !== me && f.side === me.side);
-  return [{ label: t('hud.you'), frags: me.frags }, ...mates.map((f) => ({ label: t('hud.ally'), frags: f.frags }))];
-}
-
-/**
- * Small pill whose right edge sits at `right`, vertically aligned with the score boxes. When the labelled version would run into
- * the health/armor block (`minLeft`), it falls back to numbers only ("12 · 7").
- */
-function fragPill(ctx: CanvasRenderingContext2D, items: { label: string; frags: number }[], right: number, y: number, minLeft: number): void {
-  ctx.font = '600 11px ui-rounded, system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  const gap = 12;
-  const layout = (parts: string[]): { w: number; widths: number[] } => {
-    const widths = parts.map((s) => ctx.measureText(s).width);
-    return { widths, w: widths.reduce((a, b) => a + b, 0) + gap * (parts.length - 1) + 16 };
-  };
-  let parts = items.map((i) => `${i.label} ${i.frags}`);
-  let m = layout(parts);
-  if (right - m.w < minLeft) {
-    parts = items.map((i) => String(i.frags));
-    m = layout(parts);
-  }
-  const x = right - m.w;
-  ctx.fillStyle = 'rgba(8,10,30,0.55)';
-  ctx.beginPath();
-  ctx.roundRect(x, y, m.w, 18, 9);
-  ctx.fill();
-  let cursor = x + 8;
-  parts.forEach((s, i) => {
-    ctx.fillStyle = i === 0 ? '#ffffff' : 'rgba(255,255,255,0.78)';
-    ctx.fillText(s, cursor, y + 9.5);
-    cursor += m.widths[i]! + gap;
-  });
 }
 
 /** Vector HUD in CSS px over the world: health, armor, weapon/ammo (left), frags or flags (centre). */
@@ -105,7 +65,6 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
       text(ctx, String(m.score[s] ?? 0), x + 17, top + 9, 'center');
       if (m.flagIsTaken[s] && (m.tick & 4) === 0) text(ctx, '⚑', x + 17, top + 28, 'center');
     }
-    fragPill(ctx, teamFragItems(m, playerId), cx - 42, top, left + 170);
     if (m.fragLimit > 0) {
       ctx.font = '600 10px ui-rounded, system-ui, sans-serif';
       text(ctx, t('hud.firstTo', { n: m.fragLimit }), cx, top + 42, 'center');
@@ -270,8 +229,15 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
     ctx.lineCap = 'round';
     switch (b.id) {
       case 'fire':
-        circle(ctx, b.cx, b.cy, b.r * 0.5, 'rgba(255,255,255,0)', 'rgba(255,255,255,0.92)');
-        circle(ctx, b.cx, b.cy, b.r * 0.2, 'rgba(255,255,255,0.92)');
+        // a crosshair: ring, four ticks reaching out of it and a centre dot
+        circle(ctx, b.cx, b.cy, b.r * 0.42, 'rgba(255,255,255,0)', 'rgba(255,255,255,0.92)');
+        ctx.beginPath();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          ctx.moveTo(b.cx + dx * b.r * 0.26, b.cy + dy * b.r * 0.26);
+          ctx.lineTo(b.cx + dx * b.r * 0.68, b.cy + dy * b.r * 0.68);
+        }
+        ctx.stroke();
+        circle(ctx, b.cx, b.cy, b.r * 0.1, 'rgba(255,255,255,0.92)');
         break;
       case 'jump':
         ctx.beginPath();
@@ -281,10 +247,21 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
         ctx.stroke();
         break;
       case 'action': {
-        // up and down arrows side by side (lift / cycle)
-        const k = b.r * 0.5;
-        arrow(ctx, b.cx - b.r * 0.25, b.cy + k, b.cx - b.r * 0.25, b.cy - k, b.r * 0.28);
-        arrow(ctx, b.cx + b.r * 0.25, b.cy - k, b.cx + b.r * 0.25, b.cy + k, b.r * 0.28);
+        // an elevator cabin with an up and a down arrow inside (also the key for mounting and descending on cycles)
+        const w = b.r * 0.8; const h = b.r * 1.0; const tri = b.r * 0.2;
+        ctx.lineWidth = Math.max(1.8, b.r * 0.08);
+        ctx.beginPath();
+        ctx.roundRect(b.cx - w / 2, b.cy - h / 2, w, h, b.r * 0.14);
+        ctx.stroke();
+        for (const dir of [-1, 1]) {
+          const y = b.cy + dir * h * 0.2;
+          ctx.beginPath();
+          ctx.moveTo(b.cx, y - dir * tri);
+          ctx.lineTo(b.cx - tri * 1.15, y + dir * tri * 0.65);
+          ctx.lineTo(b.cx + tri * 1.15, y + dir * tri * 0.65);
+          ctx.closePath();
+          ctx.fill();
+        }
         break;
       }
       case 'weaponNext':
