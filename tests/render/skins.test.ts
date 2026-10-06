@@ -1,36 +1,61 @@
 import { describe, expect, it } from 'vitest';
-import { BOT_SKIN, paintVest } from '../../src/assets/skins';
+import { BOT_SKIN, isVestOrange, tintVest } from '../../src/assets/skins';
 import { createMatch, skinFor } from '../../src/engine/match';
 import { botHooks } from '../../src/bots';
 import { CTF_OPTS, DM_OPTS, REAL_ASSETS, REAL_MAPS } from '../engine/real';
 
-/** an 8x14 body sprite: head rows on top, then jacket (182,123,32), skin (224,152,40) and an olive trouser pixel */
+/** a 4x6 image: rows 0-1 head (orange skin), rows 2-5 chest orange / dark orange / olive cloth / red flag */
 function sprite(): Uint8ClampedArray {
-  const d = new Uint8ClampedArray(8 * 14 * 4);
-  for (let y = 0; y < 14; y++) for (let x = 0; x < 8; x++) {
-    const rgb = y < 9 ? [182, 123, 32] : x === 0 ? [224, 152, 40] : x === 1 ? [112, 104, 56] : [182, 123, 32];
-    d.set([...rgb, 255], (y * 8 + x) * 4);
-  }
+  const rows = [
+    [[224, 152, 40], [224, 152, 40], [224, 152, 40], [224, 152, 40]],
+    [[182, 123, 32], [182, 123, 32], [182, 123, 32], [182, 123, 32]],
+    [[224, 152, 40], [149, 100, 23], [112, 104, 56], [207, 14, 14]],
+    [[224, 152, 40], [149, 100, 23], [112, 104, 56], [207, 14, 14]],
+    [[235, 175, 83], [83, 64, 24], [184, 176, 112], [90, 90, 89]],
+    [[224, 152, 40], [149, 100, 23], [112, 104, 56], [207, 14, 14]],
+  ];
+  const d = new Uint8ClampedArray(4 * 6 * 4);
+  rows.forEach((row, y) => row.forEach((rgb, x) => d.set([...rgb, 255], (y * 4 + x) * 4)));
   return d;
 }
-const px = (d: Uint8ClampedArray, x: number, y: number): number[] => [...d.slice((y * 8 + x) * 4, (y * 8 + x) * 4 + 3)];
+const px = (d: Uint8ClampedArray, x: number, y: number): number[] => [...d.slice((y * 4 + x) * 4, (y * 4 + x) * 4 + 3)];
 
 describe('vest skins', () => {
-  it('repaints only jacket pixels below the head, keeping skin and cloth', () => {
+  it('repaints the orange torso in every shade below the head, nothing else', () => {
     const d = sprite();
-    paintVest(d, 8, [{ x: 0, y: 0, w: 8, h: 14 }], 0); // blue
-    expect(px(d, 2, 12)[2]).toBeGreaterThan(px(d, 2, 12)[0]!); // jacket turned blue
-    expect(px(d, 0, 12)).toEqual([224, 152, 40]); // skin untouched
-    expect(px(d, 1, 12)).toEqual([112, 104, 56]); // trousers untouched
-    expect(px(d, 2, 3)).toEqual([182, 123, 32]); // head rows untouched
+    tintVest(d, 4, 6, 2, 0); // blue vest, torso starts at row 2
+    for (const [x, y] of [[0, 2], [1, 2], [0, 4], [1, 4], [0, 5]] as const) expect(px(d, x, y)[2]).toBeGreaterThan(px(d, x, y)[0]!); // blue now
+    expect(px(d, 0, 0)).toEqual([224, 152, 40]); // head rows keep their skin
+    expect(px(d, 0, 1)).toEqual([182, 123, 32]);
+    expect(px(d, 2, 3)).toEqual([112, 104, 56]); // olive cloth
+    expect(px(d, 3, 3)).toEqual([207, 14, 14]); // a carried red flag
+    expect(px(d, 2, 4)).toEqual([184, 176, 112]);
+    expect(px(d, 3, 4)).toEqual([90, 90, 89]);
+  });
+
+  it('keeps the shading: the shadowed orange stays darker than the lit orange', () => {
+    const d = sprite();
+    tintVest(d, 4, 6, 2, 0);
+    const lit = px(d, 0, 2)[2]!;
+    const shade = px(d, 1, 2)[2]!;
+    expect(shade).toBeLessThan(lit);
   });
 
   it('red and bot vests differ from blue', () => {
-    const blue = sprite(); paintVest(blue, 8, [{ x: 0, y: 0, w: 8, h: 14 }], 0);
-    const red = sprite(); paintVest(red, 8, [{ x: 0, y: 0, w: 8, h: 14 }], 1);
-    const bot = sprite(); paintVest(bot, 8, [{ x: 0, y: 0, w: 8, h: 14 }], BOT_SKIN);
-    expect(px(red, 2, 12)[0]).toBeGreaterThan(px(red, 2, 12)[2]!);
-    expect(px(bot, 2, 12)).not.toEqual(px(blue, 2, 12));
+    const blue = sprite(); tintVest(blue, 4, 6, 2, 0);
+    const red = sprite(); tintVest(red, 4, 6, 2, 1);
+    const bot = sprite(); tintVest(bot, 4, 6, 2, BOT_SKIN);
+    expect(px(red, 0, 2)[0]).toBeGreaterThan(px(red, 0, 2)[2]!);
+    expect(px(bot, 0, 2)).not.toEqual(px(blue, 0, 2));
+  });
+
+  it('matches only orange-brown pixels', () => {
+    expect(isVestOrange(224, 152, 40)).toBe(true);
+    expect(isVestOrange(149, 100, 23)).toBe(true);
+    expect(isVestOrange(83, 64, 24)).toBe(true);
+    expect(isVestOrange(112, 104, 56)).toBe(false);
+    expect(isVestOrange(207, 14, 14)).toBe(false);
+    expect(isVestOrange(0, 36, 255)).toBe(false);
   });
 
   it('Deathmatch: people keep their colour, bots are dark grey; CTF: team colours for everyone', () => {
@@ -51,12 +76,5 @@ describe('online vest colours', () => {
     expect(m.fighters.slice(0, 2).map((f) => f.color)).toEqual([2, 0]);
     expect(m.fighters.slice(0, 2).map((f) => f.skin)).toEqual([2, 0]);
     expect(new Set(m.fighters.map((f) => f.color)).size).toBe(4); // all distinct
-  });
-
-  it('still repaints the jacket when the browser shifts pixel values slightly', () => {
-    const d = sprite();
-    for (let i = 0; i < d.length; i += 4) if (d[i] === 182) { d[i] = 177; d[i + 1] = 127; d[i + 2] = 36; } // colour-managed copy
-    paintVest(d, 8, [{ x: 0, y: 0, w: 8, h: 14 }], 1);
-    expect(px(d, 2, 12)[0]).toBeGreaterThan(px(d, 2, 12)[2]!); // turned red
   });
 });
