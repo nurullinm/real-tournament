@@ -74,6 +74,18 @@ export function drawHud(ctx: CanvasRenderingContext2D, m: Match, playerId: numbe
 
 const ORDER_LABELS: Record<string, string> = { order0: 'DEFEND', order1: 'ATTACK', order2: 'FREE' };
 
+/** Line with an arrow head at (x1, y1). */
+function arrow(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, head: number): void {
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.moveTo(x1 - head * Math.cos(a - 0.6), y1 - head * Math.sin(a - 0.6));
+  ctx.lineTo(x1, y1);
+  ctx.lineTo(x1 - head * Math.cos(a + 0.6), y1 - head * Math.sin(a + 0.6));
+  ctx.stroke();
+}
+
 function circle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, fill: string, stroke?: string, lw = 2): void {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -93,11 +105,18 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
   circle(ctx, s.cx, s.cy, s.r, 'rgba(255,255,255,0.09)', 'rgba(255,255,255,0.32)');
   circle(ctx, s.cx, s.cy, s.r * 0.58, 'rgba(255,255,255,0)', 'rgba(255,255,255,0.12)', 1.5);
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = `700 ${Math.round(s.r * 0.26)}px system-ui, sans-serif`;
+  const tri = Math.round(s.r * 0.13);
+  for (const dir of [-1, 1]) {
+    const tx = s.cx + dir * s.r * 0.78;
+    ctx.beginPath();
+    ctx.moveTo(tx + dir * tri, s.cy);
+    ctx.lineTo(tx - dir * tri * 0.7, s.cy - tri);
+    ctx.lineTo(tx - dir * tri * 0.7, s.cy + tri);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('◀', s.cx - s.r * 0.78, s.cy);
-  ctx.fillText('▶', s.cx + s.r * 0.78, s.cy);
   circle(ctx, s.cx + stick.x, s.cy + stick.y, s.knobR, stick.active ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.26)', 'rgba(255,255,255,0.75)');
 
   for (const b of layout.buttons) {
@@ -128,19 +147,25 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
         break;
       case 'jump':
         ctx.beginPath();
-        ctx.moveTo(b.cx - b.r * 0.4, b.cy + b.r * 0.2);
-        ctx.lineTo(b.cx, b.cy - b.r * 0.25);
-        ctx.lineTo(b.cx + b.r * 0.4, b.cy + b.r * 0.2);
+        ctx.moveTo(b.cx - b.r * 0.4, b.cy + b.r * 0.22);
+        ctx.lineTo(b.cx, b.cy - b.r * 0.22);
+        ctx.lineTo(b.cx + b.r * 0.4, b.cy + b.r * 0.22);
         ctx.stroke();
         break;
-      case 'action':
-        ctx.font = `700 ${Math.round(b.r * 0.9)}px system-ui, sans-serif`;
-        ctx.fillText('⇅', b.cx, b.cy + 1);
+      case 'action': {
+        // up and down arrows side by side (lift / cycle)
+        const k = b.r * 0.5;
+        arrow(ctx, b.cx - b.r * 0.25, b.cy + k, b.cx - b.r * 0.25, b.cy - k, b.r * 0.28);
+        arrow(ctx, b.cx + b.r * 0.25, b.cy - k, b.cx + b.r * 0.25, b.cy + k, b.r * 0.28);
         break;
-      case 'weaponNext':
-        ctx.font = `700 ${Math.round(b.r * 1.0)}px system-ui, sans-serif`;
-        ctx.fillText('⇄', b.cx, b.cy + 1);
+      }
+      case 'weaponNext': {
+        // swap: right arrow over left arrow
+        const k = b.r * 0.5;
+        arrow(ctx, b.cx - k, b.cy - b.r * 0.22, b.cx + k, b.cy - b.r * 0.22, b.r * 0.3);
+        arrow(ctx, b.cx + k, b.cy + b.r * 0.22, b.cx - k, b.cy + b.r * 0.22, b.r * 0.3);
         break;
+      }
     }
   }
 }

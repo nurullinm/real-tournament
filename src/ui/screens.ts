@@ -33,6 +33,8 @@ export interface Ui {
   hide(): void;
   /** true while any menu/overlay is covering the game */
   readonly open: boolean;
+  /** the pause menu is showing (the pause button acts as Resume) */
+  readonly paused: boolean;
   setPauseButton(on: boolean): void;
   setRotateOverlay(on: boolean): void;
 }
@@ -40,7 +42,14 @@ export interface Ui {
 export function createUi(root: HTMLElement, settings: GameSettings, help: HelpText, handlers: UiHandlers): Ui {
   const menu = h('div', { class: 'ui menu' });
   const over = h('div', { class: 'ui over' });
-  const pauseBtn = h('button', { id: 'pause', 'aria-label': 'Pause', text: '❚❚', onclick: () => handlers.pause() });
+  let paused = false;
+  const pauseBtn = h('button', { id: 'pause', 'aria-label': 'Pause', onclick: () => (paused ? handlers.resume() : handlers.pause()) });
+  /** the pause button doubles as Resume while the pause menu is open, in the same corner */
+  const setPausedUi = (on: boolean): void => {
+    paused = on;
+    pauseBtn.setAttribute('aria-label', on ? 'Resume' : 'Pause');
+    pauseBtn.classList.toggle('resume', on);
+  };
   const rotate = h('div', { class: 'rotate' }, h('div', { class: 'phone' }), h('div', { text: 'Rotate your phone' }), h('div', { text: 'Real Tournament is played in landscape', style: 'font-size:14px;color:#9ba0d0;font-weight:500' }));
   root.append(menu, over, pauseBtn, rotate);
   let isOpen = false;
@@ -148,19 +157,22 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
     showMain: mainScreen,
     showPause(canOrder, currentOrder): void {
       clear(over);
-      const sheet = h('div', { class: 'sheet' }, h('h2', { text: 'Game paused' }));
-      sheet.append(button('Resume', handlers.resume, 'primary'));
+      const chip = (text: string, onclick: () => void, cls = ''): HTMLElement => h('button', { class: `btn chip ${cls}`, text, onclick });
+      const sheet = h('div', { class: 'sheet pause' }, h('h2', { text: 'Game paused' }));
       if (canOrder) {
-        sheet.append(h('h2', { text: 'Ally control', style: 'margin-top:12px' }));
-        ORDER_LABELS.forEach((label, i) => sheet.append(button(label, () => { handlers.allyOrder(i as AllyOrder); handlers.resume(); }, i === currentOrder ? 'hot' : '')));
+        const row = h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Ally' }));
+        ORDER_LABELS.forEach((label, i) => row.append(chip(label, () => { handlers.allyOrder(i as AllyOrder); handlers.resume(); }, i === currentOrder ? 'hot' : '')));
+        sheet.append(row);
       }
-      sheet.append(
-        toggle('Sound', () => settings.sound, (v) => { settings.sound = v; }),
-        button('Help', () => helpScreen(() => this.showPause(canOrder, currentOrder), over)),
-        button('End game', handlers.endGame, 'quiet'),
-      );
+      const sound = chip(`Sound: ${settings.sound ? 'On' : 'Off'}`, () => {
+        settings.sound = !settings.sound;
+        sound.textContent = `Sound: ${settings.sound ? 'On' : 'Off'}`;
+        save();
+      });
+      sheet.append(h('div', { class: 'prow' }, sound, chip('Help', () => helpScreen(() => this.showPause(canOrder, currentOrder), over)), chip('End game', handlers.endGame, 'quiet')));
       over.append(sheet);
       open(over);
+      setPausedUi(true);
     },
     showResult(m): void {
       clear(over);
@@ -177,17 +189,22 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
           h('div', { class: cls, text: String(r.score) }),
         );
       });
+      setPausedUi(false);
       over.append(h('div', { class: 'sheet compact' }, h('h2', { text: 'Match result' }), grid, button('Menu', handlers.endGame, 'primary')));
       open(over);
       over.classList.add('plain');
     },
     hide(): void {
+      setPausedUi(false);
       menu.classList.remove('open');
       over.classList.remove('open');
       isOpen = false;
     },
     get open(): boolean {
       return isOpen;
+    },
+    get paused(): boolean {
+      return paused;
     },
     setPauseButton(on): void {
       pauseBtn.classList.toggle('on', on);

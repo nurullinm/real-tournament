@@ -164,7 +164,11 @@ async function boot(): Promise<void> {
     if (visible) resumePlay();
     else suspendPlay();
   });
-  window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && session && loop.running) pauseMenu(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Escape' || !session) return;
+    if (loop.running) pauseMenu();
+    else if (ui.paused) { ui.hide(); loop.resume(); }
+  });
   window.addEventListener('keydown', () => { void audio.unlock(); }, { once: true });
 
   if (import.meta.env.DEV) (window as unknown as { __rt: unknown }).__rt = { get session() { return session; }, loop, ui, settings, tickOnce, renderFrame };
