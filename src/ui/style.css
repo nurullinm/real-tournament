@@ -56,3 +56,10 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 }
 .sheet { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sheet > h2, .sheet > .row, .sheet > .help, .sheet > .tabs, .sheet > .scores { flex: 1 1 100%; }
+/* match result: a small card over the live scene, no full-screen dimming */
+.ui.over.plain { background: none; pointer-events: none; }
+.ui.over.plain .sheet { pointer-events: auto; }
+.sheet.compact { padding: 8px 12px; gap: 4px; max-width: 260px; font-size: 14px; background: rgba(12, 14, 40, 0.86); border-width: 1px; border-radius: 10px; }
+.sheet.compact h2 { font-size: 13px; margin: 0; }
+.sheet.compact .scores { min-width: 0; margin: 2px 0 4px; gap: 3px 18px; }
+.sheet.compact .btn { min-height: 34px; padding: 6px 12px; font-size: 13px; }

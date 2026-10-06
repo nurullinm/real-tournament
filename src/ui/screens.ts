@@ -47,7 +47,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
 
   const open = (layer: HTMLElement): void => {
     menu.classList.remove('open');
-    over.classList.remove('open');
+    over.classList.remove('open', 'plain');
     layer.classList.add('open');
     isOpen = true;
   };
@@ -176,8 +176,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, help: HelpTe
           h('div', { class: cls, text: String(r.score) }),
         );
       });
-      over.append(h('div', { class: 'sheet' }, h('h2', { text: 'Match result' }), grid, button('Menu', handlers.endGame, 'primary')));
+      over.append(h('div', { class: 'sheet compact' }, h('h2', { text: 'Match result' }), grid, button('Menu', handlers.endGame, 'primary')));
       open(over);
+      over.classList.add('plain');
     },
     hide(): void {
       menu.classList.remove('open');
