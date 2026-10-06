@@ -286,35 +286,24 @@ function strike(t: number, at: number, noise: () => number, hpf: Biquad, rings: 
   return s;
 }
 
-/** Ammo pickup: slamming a fresh magazine home and racking the bolt - short, hard, mechanical. */
+/** Ammo pickup: one hard metallic clack of a magazine seating - a single hit, no tail. */
 function ammo(): Float32Array {
-  const noise = createNoise(171); const hpf = new Biquad('hp', 2600, 0.7); const scrape = new Biquad('bp', 2300, 1.3); const body = new Biquad('lp', 5200, 0.7);
-  const mag = [new Osc(), new Osc()]; const magT = new Osc(); const lock = [new Osc(), new Osc()]; const lockT = new Osc(); const rel = [new Osc()]; const relT = new Osc();
-  return finish(render(0.52, (t) => {
-    let s = strike(t, 0.0, noise, hpf, [[1900, 0.2, 0.012], [3100, 0.12, 0.008]], 150, 0.6, 1.7, mag, magT); // magazine slams in
-    const rk = t - 0.17; // bolt slides back: a rough scrape that gets louder
-    if (rk > 0 && rk < 0.075) s += scrape.process(noise()) * Math.min(1, rk / 0.05) * 0.5;
-    s += strike(t, 0.245, noise, hpf, [[2400, 0.18, 0.01], [1500, 0.14, 0.015]], 118, 0.75, 1.9, lock, lockT); // bolt locks forward: the heavy clack
-    s += strike(t, 0.33, noise, hpf, [[3300, 0.14, 0.008]], 190, 0.3, 1.1, rel, relT); // release click
-    return softClip(body.process(s) * 1.35);
-  }), 0.9, 40);
+  const noise = createNoise(171); const hpf = new Biquad('hp', 2400, 0.7); const body = new Biquad('lp', 5200, 0.7);
+  const rings = [new Osc(), new Osc()]; const thump = new Osc();
+  return finish(render(0.2, (t) => {
+    const s = strike(t, 0.0, noise, hpf, [[1900, 0.2, 0.012], [1500, 0.14, 0.015]], 140, 0.8, 1.9, rings, thump);
+    return softClip(body.process(s) * 1.4);
+  }), 0.9, 25);
 }
 
-/** Weapon pickup: a heavy breech slammed shut - a thunderous slam, a ratcheting servo, a ringing lock and a final latch. */
+/** Weapon pickup: one heavy breech clack - a single, deeper hit than the ammo one. */
 function weapon(): Float32Array {
-  const noise = createNoise(181); const hpf = new Biquad('hp', 2200, 0.7); const slamN = new Biquad('lp', 1400, 0.8); const ratchet = new Biquad('hp', 3000, 0.7);
-  const slamRings = [310, 770, 1260, 2100].map(() => new Osc()); const slamT = new Osc();
-  const lockRings = [520, 1340].map(() => new Osc()); const lockT = new Osc(); const latch = [new Osc()]; const latchT = new Osc();
-  const lockN = new Biquad('bp', 900, 1.2);
-  return finish(render(0.8, (t) => {
-    let s = slamN.process(noise()) * expDecay(t, 0.055) * 0.9;
-    s += strike(t, 0.0, noise, hpf, [[310, 0.34, 0.05], [770, 0.24, 0.035], [1260, 0.16, 0.02], [2100, 0.1, 0.012]], 75, 1.1, 0.9, slamRings, slamT);
-    for (let i = 0; i < 5; i++) { const lt = t - (0.13 + i * 0.03); if (lt >= 0) s += ratchet.process(noise()) * expDecay(lt, 0.004) * 1.1; }
-    s += lockN.process(noise()) * expDecay(t - 0.36, 0.05) * (t > 0.36 ? 0.7 : 0);
-    s += strike(t, 0.36, noise, hpf, [[520, 0.3, 0.04], [1340, 0.2, 0.025]], 98, 1.1, 0.7, lockRings, lockT);
-    s += strike(t, 0.52, noise, hpf, [[3400, 0.16, 0.008]], 200, 0.3, 1.5, latch, latchT);
-    return softClip(s * 1.3);
-  }), 0.95, 90);
+  const noise = createNoise(181); const hpf = new Biquad('hp', 2000, 0.7); const body = new Biquad('lp', 4800, 0.7);
+  const rings = [new Osc(), new Osc()]; const thump = new Osc();
+  return finish(render(0.26, (t) => {
+    const s = strike(t, 0.0, noise, hpf, [[520, 0.3, 0.04], [1340, 0.2, 0.025]], 90, 1.1, 1.6, rings, thump);
+    return softClip(body.process(s) * 1.4);
+  }), 0.95, 30);
 }
 
 const FACTORIES: Record<EffectName, () => Float32Array> = { laser, bazooka, explosion, saw, spinup, pickup, respawn, die, diehard, alarm, capture, order, ammo, weapon };

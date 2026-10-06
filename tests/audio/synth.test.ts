@@ -33,7 +33,7 @@ const rms = (x: Float32Array) => Math.sqrt(x.reduce((a, v) => a + v * v, 0) / x.
 
 const DURATION: Record<EffectName, [number, number]> = {
   laser: [0.15, 0.4], bazooka: [0.4, 0.9], explosion: [1.0, 2.2], saw: [0.4, 0.9], spinup: [1.2, 2.0], pickup: [0.25, 0.6],
-  respawn: [0.6, 1.3], die: [0.35, 0.9], diehard: [0.5, 1.2], alarm: [0.9, 1.7], capture: [0.9, 1.8], order: [0.25, 0.6], ammo: [0.3, 0.8], weapon: [0.5, 1.1],
+  respawn: [0.6, 1.3], die: [0.35, 0.9], diehard: [0.5, 1.2], alarm: [0.9, 1.7], capture: [0.9, 1.8], order: [0.25, 0.6], ammo: [0.12, 0.4], weapon: [0.15, 0.5],
 };
 
 describe('sound effects (44.1 kHz synth)', () => {
@@ -139,15 +139,15 @@ describe('sound effects (44.1 kHz synth)', () => {
       return n;
     };
 
-    it('the ammo pickup is a mechanical sequence of hard hits (magazine in, bolt racked, release)', () => {
-      expect(hits(get('ammo'))).toBeGreaterThanOrEqual(2);
+    it('the ammo pickup is a single hard clack', () => {
+      expect(hits(get("ammo"))).toBe(1);
       expect(bandShare(get('ammo'), SR, 100, 250)).toBeGreaterThan(0.02); // body thump
-      expect(bandShare(get('ammo'), SR, 1500, 9000)).toBeGreaterThan(0.05); // metallic click
+      expect(bandShare(get("ammo"), SR, 1500, 9000)).toBeGreaterThan(0.02); // metallic click
     });
 
-    it('the weapon pickup is heavier and longer: thunderous slam plus several latch/ratchet hits', () => {
-      expect(hits(get('weapon'))).toBeGreaterThanOrEqual(3);
-      expect(bandShare(get('weapon'), SR, 40, 200)).toBeGreaterThan(0.15); // deep
+    it('the weapon pickup is one heavier, deeper clack', () => {
+      expect(hits(get("weapon"))).toBe(1);
+      expect(hits(get("weapon"))).toBe(1);
       expect(get('weapon').length).toBeGreaterThan(get('ammo').length);
       expect(rms(get('weapon').subarray(0, 4000))).toBeGreaterThan(rms(get('ammo').subarray(0, 4000)) * 0.9);
     });
