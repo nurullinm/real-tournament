@@ -46,7 +46,7 @@ const DEG = Math.PI / 180;
 
 /**
  * Landscape shooter layout (CSS px): joystick bottom-left; big fire button in the bottom-right corner with jump, action
- * and weapon-swap on an arc around it; ally orders as small pills above the joystick (CTF 2v2 only).
+ * and weapon-swap on an arc around it, well clear of the fire button; ally orders as small pills above the joystick (CTF 2v2 only).
  */
 export function computeLayout(w: number, h: number, safe: Insets, withOrders = false): ButtonLayout {
   const unit = Math.min(Math.max(h / 440, 0.8), 1.15);
@@ -69,9 +69,9 @@ export function computeLayout(w: number, h: number, safe: Insets, withOrders = f
   const swapR = Math.round(22 * unit);
   const buttons: Button[] = [
     { id: 'fire', shape: 'circle', cx: fx, cy: fy, r: fireR },
-    onArc('jump', jumpR, fireR + jumpR + 8, 162),
-    onArc('action', actionR, fireR + actionR + 8, 112),
-    onArc('weaponNext', swapR, fireR + swapR + 30, 72),
+    onArc('jump', jumpR, fireR + jumpR + 22, 162),
+    onArc('action', actionR, fireR + actionR + 22, 112),
+    onArc('weaponNext', swapR, fireR + swapR + 40, 72),
   ];
   if (withOrders) {
     const pw = Math.round(54 * unit);

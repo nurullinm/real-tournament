@@ -98,7 +98,6 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
   ctx.textBaseline = 'middle';
   ctx.fillText('◀', s.cx - s.r * 0.78, s.cy);
   ctx.fillText('▶', s.cx + s.r * 0.78, s.cy);
-  ctx.fillText('▲', s.cx, s.cy - s.r * 0.78);
   circle(ctx, s.cx + stick.x, s.cy + stick.y, s.knobR, stick.active ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.26)', 'rgba(255,255,255,0.75)');
 
   for (const b of layout.buttons) {

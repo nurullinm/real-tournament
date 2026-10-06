@@ -29,13 +29,11 @@ type PointerLike = Event & { pointerId: number; clientX: number; clientY: number
 const HOLD: ReadonlySet<ButtonId> = new Set(['jump', 'fire', 'action']);
 /** fraction of the base radius the knob must travel before it counts */
 const DEAD_ZONE = 0.28;
-/** pushing the stick this far up also jumps */
-const JUMP_PUSH = 0.62;
 
 type Pointer = { kind: 'none' } | { kind: 'button'; id: ButtonId } | { kind: 'stick'; x: number; y: number };
 
 /**
- * Multitouch shooter controls: a joystick (left/right, push up to jump) plus hold buttons. Each pointer owns at most one
+ * Multitouch shooter controls: a joystick (left/right only) plus hold buttons. Each pointer owns at most one
  * control; sliding off a button releases it; weapon swap and order buttons fire once on touch-down.
  */
 export function createTouchInput(el: HTMLElement, initial: ButtonLayout, opts: TouchOptions = {}): TouchInput {
@@ -122,10 +120,9 @@ export function createTouchInput(el: HTMLElement, initial: ButtonLayout, opts: T
       const h = held();
       const s = stick();
       const nx = s.active ? s.x / layout.stick.r : 0;
-      const ny = s.active ? s.y / layout.stick.r : 0;
       const out: InputState = {
         ...NO_INPUT,
-        left: nx < -DEAD_ZONE, right: nx > DEAD_ZONE, jump: h.has('jump') || ny < -JUMP_PUSH, fire: h.has('fire'), action: h.has('action'),
+        left: nx < -DEAD_ZONE, right: nx > DEAD_ZONE, jump: h.has('jump'), fire: h.has('fire'), action: h.has('action'),
         weaponDelta: delta,
       };
       delta = 0;

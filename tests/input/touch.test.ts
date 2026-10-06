@@ -29,13 +29,13 @@ describe('joystick', () => {
     expect(input.state()).toMatchObject({ right: false, left: true });
   });
 
-  it('pushing up jumps, and diagonal up-right does both', () => {
+  it('pushing the stick up does not jump (jump is its own button); diagonals still move sideways', () => {
     const { input, fire } = setup();
     fire('pointerdown', 1, stickAt(0, 0));
-    fire('pointermove', 1, stickAt(0, -0.9));
-    expect(input.state()).toMatchObject({ jump: true, left: false, right: false });
+    fire('pointermove', 1, stickAt(0, -0.95));
+    expect(input.state()).toMatchObject({ jump: false, left: false, right: false });
     fire('pointermove', 1, stickAt(0.7, -0.8));
-    expect(input.state()).toMatchObject({ jump: true, right: true });
+    expect(input.state()).toMatchObject({ jump: false, right: true });
   });
 
   it('the knob is clamped to the base radius and reported for drawing', () => {
@@ -201,5 +201,19 @@ describe('layout', () => {
   it('only adds order buttons when asked', () => {
     expect(computeLayout(956, 440, safe).buttons.some((b) => b.id === 'order0')).toBe(false);
     expect(computeLayout(956, 440, safe, true).buttons.filter((b) => b.id.startsWith('order'))).toHaveLength(3);
+  });
+});
+
+describe('layout spacing', () => {
+  it('keeps action buttons well clear of the fire button (at least 14 px gap)', () => {
+    for (const [w, h] of [[956, 440], [667, 375], [844, 390]] as const) {
+      const l = computeLayout(w, h, safe, false);
+      const fire = l.buttons.find((b) => b.id === 'fire')!;
+      for (const id of ['jump', 'action', 'weaponNext'] as const) {
+        const b = l.buttons.find((x) => x.id === id)!;
+        if (fire.shape !== 'circle' || b.shape !== 'circle') throw new Error('expected circles');
+        expect(Math.hypot(b.cx - fire.cx, b.cy - fire.cy) - b.r - fire.r, `${id} ${w}x${h}`).toBeGreaterThanOrEqual(14);
+      }
+    }
   });
 });
