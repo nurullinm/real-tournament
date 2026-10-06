@@ -121,3 +121,12 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 /* the three ally-command buttons in the pause window: identical size and type, long labels wrap to two lines */
 .prow.wrap { flex-wrap: nowrap; align-items: stretch; }
 .prow.wrap .btn.chip { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 4px 6px; font-size: 12px; line-height: 1.15; letter-spacing: 0.03em; white-space: normal; text-align: center; display: flex; align-items: center; justify-content: center; overflow-wrap: anywhere; }
+
+/* pause window rhythm: 8 px between neighbouring buttons and between a heading and its buttons, 14 px between sections */
+.win-body.pause { gap: 14px; padding-top: 10px; }
+.win-body.pause .psec { display: flex; flex-direction: column; gap: 8px; }
+.win-body.pause .plabel { margin: 0; }
+.win-body.pause .prow { gap: 8px; }
+.win .tabs { gap: 8px; }
+.win-body.pause .chip { min-height: 44px; }
+.ui.menu .col { gap: 8px; }

@@ -40,6 +40,8 @@ interface WindowParts {
   footer?: HTMLElement[];
   /** result card: smaller, no fixed height */
   small?: boolean;
+  /** extra class for the body (e.g. spaced sections) */
+  bodyClass?: string;
 }
 
 export function createUi(root: HTMLElement, settings: GameSettings, handlers: UiHandlers): Ui {
@@ -80,7 +82,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     const head = h('div', { class: 'win-head' });
     if (p.onBack) head.append(h('button', { class: 'back', 'aria-label': t('common.back'), onclick: p.onBack }));
     head.append(h('h2', { text: p.title }));
-    const el = h('div', { class: `win${p.small ? ' small' : ''}` }, head, h('div', { class: 'win-body' }, ...p.body));
+    const el = h('div', { class: `win${p.small ? ' small' : ''}` }, head, h('div', { class: `win-body${p.bodyClass ? ` ${p.bodyClass}` : ''}` }, ...p.body));
     if (p.footer?.length) el.append(h('div', { class: 'win-foot' }, ...p.footer));
     return el;
   }
@@ -214,7 +216,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       if (canOrder) {
         const row = h('div', { class: 'prow wrap' });
         for (let i = 0; i < 3; i++) row.append(chip(orderLabel(i), () => { handlers.allyOrder(i as AllyOrder); handlers.resume(); }, i === currentOrder ? 'hot' : ''));
-        body.push(h('div', { class: 'plabel', text: t('pause.ally') }), row);
+        body.push(h('div', { class: 'psec' }, h('div', { class: 'plabel', text: t('pause.ally') }), row));
       }
       const soundText = (): string => t('pause.sound', { value: onOff(settings.sound) });
       const sound = chip(soundText(), () => {
@@ -226,6 +228,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
       over.append(win({
         title: t('pause.title'),
         onBack: handlers.resume,
+        bodyClass: 'pause',
         body,
         footer: [button(t('pause.end'), handlers.endGame, 'quiet')],
       }));
