@@ -23,7 +23,7 @@ describe('lift rendering', () => {
   it('the car (drawn with the world) and its passenger (drawn with the actors) share one height between ticks', () => {
     const s = new GameSession({ ...DM_OPTS, bots: 0 }, 1, {
       sprites, assets: REAL_ASSETS, maps: REAL_MAPS,
-      audio: { init() {}, unlock: async () => {}, running: true, nowPlaying: null, play() {}, playMusic() {}, setEnabled() {}, suspend() {}, resume() {}, poke() {} },
+      audio: { init() {}, unlock: async () => {}, running: true, nowPlaying: null, play() {}, playMusic() {}, setEnabled() {}, suspend() {}, resume() {}, poke() {}, debug: () => "" },
       platform: { haptic() {} } as never,
     });
     const m = s.match;
@@ -61,7 +61,7 @@ describe('lift rendering', () => {
   it('a tram and its passenger share one position between ticks', () => {
     const s = new GameSession({ ...DM_OPTS, bots: 0, mapId: 2 }, 1, {
       sprites, assets: REAL_ASSETS, maps: REAL_MAPS,
-      audio: { init() {}, unlock: async () => {}, running: true, nowPlaying: null, play() {}, playMusic() {}, setEnabled() {}, suspend() {}, resume() {}, poke() {} },
+      audio: { init() {}, unlock: async () => {}, running: true, nowPlaying: null, play() {}, playMusic() {}, setEnabled() {}, suspend() {}, resume() {}, poke() {}, debug: () => "" },
       platform: { haptic() {} } as never,
     });
     const m = s.match;

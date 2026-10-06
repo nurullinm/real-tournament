@@ -53,6 +53,15 @@ async function boot(): Promise<void> {
   window.addEventListener('pageshow', poke);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poke(); });
   setInterval(poke, 2000);
+  if (new URLSearchParams(location.search).has('debug')) {
+    const box = document.createElement('pre');
+    box.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:99999;margin:0;padding:4px 6px;font:10px/1.3 monospace;color:#0f0;background:rgba(0,0,0,.7);pointer-events:none;max-width:60vw;white-space:pre-wrap';
+    document.body.appendChild(box);
+    const log: string[] = [];
+    const note = (e: string): void => { log.push(`${new Date().toISOString().slice(14, 19)} ${e}`); if (log.length > 8) log.shift(); };
+    for (const ev of ['visibilitychange', 'pageshow', 'pagehide', 'focus', 'blur', 'touchend']) window.addEventListener(ev, () => note(ev + (ev === 'visibilitychange' ? ':' + document.visibilityState : '')), true);
+    setInterval(() => { box.textContent = audio.debug() + '\n' + log.join('\n'); }, 400);
+  }
 
   const platform = await initPlatform();
   const canvas = document.getElementById('game') as HTMLCanvasElement;

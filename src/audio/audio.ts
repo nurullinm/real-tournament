@@ -60,6 +60,8 @@ export interface Audio {
   resume(): void;
   /** Cheap health check, safe to call often (timer, focus, visibility): revives audio that the OS interrupted (screen lock, call). */
   poke(): void;
+  /** Snapshot for the ?debug=1 overlay. */
+  debug(): string;
 }
 
 export function createAudio(deps?: Partial<AudioDeps>): Audio {
@@ -107,6 +109,14 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
 
   let stale = false; // the OS may have broken output (lock screen, interruption): start over with a fresh context
   let verified = false; // a source has been started inside a user gesture on the current context
+
+  /** iOS 17+: tell the system this page is media playback, so output survives the silent switch and recovers after interruptions. */
+  function preferPlayback(): void {
+    try {
+      const as = (globalThis as { navigator?: { audioSession?: { type: string } } }).navigator?.audioSession;
+      if (as) as.type = 'playback';
+    } catch { /* unsupported */ }
+  }
 
   function startMusic(): void {
     if (!ctx || !wanted || !enabled || suspended || !isRunning()) return;
@@ -197,6 +207,7 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     voices = 0;
     stale = false;
     verified = false;
+    preferPlayback();
     ctx = d.createContext();
     ctx.onstatechange = () => { if (ctx && ctx.state !== 'running') stale = true; startMusic(); };
     void ctx.resume().then(() => startMusic(), () => {});
@@ -206,6 +217,7 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     init(): void {
       if (started) return;
       started = true;
+      preferPlayback();
       ctx = d.createContext();
       ctx.onstatechange = () => { if (ctx && ctx.state !== 'running') stale = true; startMusic(); };
       // some webviews allow audio without a gesture: try right away, otherwise the first touch does it
@@ -279,6 +291,9 @@ export function createAudio(deps?: Partial<AudioDeps>): Audio {
     resume(): void {
       suspended = false;
       void ensureRunning();
+    },
+    debug(): string {
+      return `ctx=${ctx?.state ?? 'none'} stale=${stale} verified=${verified} susp=${suspended} playing=${playing?.id ?? '-'} fx=${effects.size} mus=${music.size}`;
     },
     poke(): void {
       if (!started || suspended) return; // paused on purpose (hidden, minimised, portrait)

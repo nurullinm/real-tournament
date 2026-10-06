@@ -32,7 +32,7 @@ function recorder() {
 
 const audioLog: string[] = [];
 const audio: Audio = {
-  init() {}, unlock: async () => {}, running: true, nowPlaying: null, play: (n) => { audioLog.push(n); }, playMusic: () => {}, setEnabled: () => {}, suspend: () => {}, resume: () => {}, poke: () => {},
+  init() {}, unlock: async () => {}, running: true, nowPlaying: null, play: (n) => { audioLog.push(n); }, playMusic: () => {}, setEnabled: () => {}, suspend: () => {}, resume: () => {}, poke: () => {}, debug: () => "",
 };
 const haptics: string[] = [];
 const platform = { isTelegram: false, haptic: (k: string) => { haptics.push(k); } } as unknown as Platform;
