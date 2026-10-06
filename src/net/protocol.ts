@@ -44,7 +44,9 @@ export type ClientMsg =
   | { t: 'team'; team: number }
   | { t: 'cfg'; cfg: RoomConfig }
   | { t: 'start' }
-  | { t: 'in'; c: number; ws: -1 | 0 | 1 | 2; wd: -1 | 0 | 1 }
+  /** `at`: the tick this input is meant to apply from (client-side prediction); omitted/old = as soon as possible */
+  | { t: 'in'; c: number; ws: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; at?: number }
+  | { t: 'ping'; ts: number }
   | { t: 'over' };
 
 export type ServerMsg =
@@ -54,6 +56,7 @@ export type ServerMsg =
   | { t: 'start'; seed: number; cfg: RoomConfig; humanSlots: number[]; names: string[]; colors: number[]; slot: number }
   /** server tick n: input of every human slot, plus slots that dropped out at this tick (bots take over) */
   | { t: 'tick'; n: number; i: WireInput[]; d?: number[] }
+  | { t: 'pong'; ts: number }
   | { t: 'error'; reason: 'full' | 'started' | 'auth' | 'bad' | 'notfound' };
 
 export function cleanName(raw: unknown, fallback = 'Player'): string {

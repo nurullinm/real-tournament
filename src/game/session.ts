@@ -4,8 +4,9 @@ import type { Audio, SoundName } from '../audio/audio';
 import { eventVolume } from '../audio/spatial';
 import { botHooks, setAllyOrder, type AllyOrder } from '../bots';
 import type { NetTick } from '../net/lockstep';
+import { cloneMatch } from '../engine/clone';
 import { createMatch, matchResult, skinFor, step, type MatchResult } from '../engine/match';
-import type { EngineAssets, InputState, Match, MatchOptions } from '../engine/types';
+import { NO_INPUT, type EngineAssets, type InputState, type Match, type MatchOptions } from '../engine/types';
 import type { ButtonLayout, ButtonId, Insets } from '../input/layout';
 import type { StickState } from '../input/touch';
 import { orderLabel, t } from '../i18n';
@@ -45,7 +46,19 @@ export interface FrameInfo {
 
 /** One running match: engine state plus everything that only exists for presentation (camera, effects, interpolation). */
 export class GameSession {
-  readonly match: Match;
+  /** the simulation confirmed by the server (online) or the only simulation (solo): events, results and scores come from it */
+  private readonly auth: Match;
+  /** what is drawn: online, a copy of `auth` run ahead with the local player's input (client-side prediction); solo: `auth` itself */
+  private shown: Match;
+  private readonly online: boolean;
+  /** local input per predicted tick, replayed when a server tick corrects the prediction */
+  private readonly history = new Map<number, InputState>();
+  /** the other humans' last confirmed input: the best guess for what they do in the predicted ticks */
+  private readonly remoteHeld = new Map<number, InputState>();
+  private held: InputState = { ...NO_INPUT };
+  private pulseSel: InputState['weaponSelect'] = -1;
+  private pulseDelta: InputState['weaponDelta'] = 0;
+  private dirty = false;
   result: MatchResult = { over: false, winner: null };
   private readonly effects = new Effects();
   private readonly anim = newWorldAnim();
@@ -62,20 +75,32 @@ export class GameSession {
 
   /** `localSlot`: which fighter this device controls; `names`: player nicknames by slot (online matches only) */
   constructor(opts: MatchOptions, seed: number, private readonly deps: SessionDeps, readonly localSlot = 0, readonly names: string[] = []) {
-    this.match = createMatch(opts, deps.maps[opts.mapId]!, seed, deps.assets, botHooks);
-    this.snapPrev();
-    const p = this.match.fighters[localSlot]!;
-    this.cam = this.prevCam = computeCamera(cameraTarget(p, p.headsLeft, this.view), this.view, { w: this.match.mapWidth, h: this.match.mapHeight });
+    this.auth = createMatch(opts, deps.maps[opts.mapId]!, seed, deps.assets, botHooks);
+    this.online = names.length > 0;
+    this.shown = this.online ? cloneMatch(this.auth) : this.auth;
+    this.snapPrev(this.shown);
+    const p = this.shown.fighters[localSlot]!;
+    this.cam = this.prevCam = computeCamera(cameraTarget(p, p.headsLeft, this.view), this.view, { w: this.shown.mapWidth, h: this.shown.mapHeight });
     this.lastHp = p.hp;
   }
 
-  private snapPrev(): void {
-    this.prev = this.match.fighters.map((f) => ({ x: f.x, y: f.y }));
+  /** the match being drawn (online: the predicted one) */
+  get match(): Match {
+    return this.shown;
+  }
+
+  /** the match as the server has confirmed it: use it for scores, results and anything shown as fact */
+  get authoritative(): Match {
+    return this.auth;
+  }
+
+  private snapPrev(m: Match): void {
+    this.prev = m.fighters.map((f) => ({ x: f.x, y: f.y }));
     this.prevProj.clear();
-    for (const p of this.match.projectiles) this.prevProj.set(p, p.x);
-    this.prevTramX = this.match.tram.x;
+    for (const p of m.projectiles) this.prevProj.set(p, p.x);
+    this.prevTramX = m.tram.x;
     this.prevCarY.clear();
-    this.match.pobjs.forEach((p, i) => { if (p.type === 1 || p.type === 18 || p.type === 19) this.prevCarY.set(i, p.y); });
+    m.pobjs.forEach((p, i) => { if (p.type === 1 || p.type === 18 || p.type === 19) this.prevCarY.set(i, p.y); });
   }
 
   /** One 60 ms engine tick with the player's input. */
@@ -85,7 +110,7 @@ export class GameSession {
 
   /** One server-issued tick of an online match: everybody's input, plus humans who left (bots take over). */
   tickNet(nt: NetTick): void {
-    const m = this.match;
+    const m = this.auth;
     for (const slot of nt.dropped) {
       const f = m.fighters[slot];
       if (f && f.human) {
@@ -93,14 +118,75 @@ export class GameSession {
         f.skin = skinFor(m, f);
         m.ai.findNearestNode(m, f);
       }
+      this.remoteHeld.delete(slot);
     }
-    this.advance(nt.inputs);
+    step(m, nt.inputs);
+    for (const [slot, input] of nt.inputs) if (slot !== this.localSlot) this.remoteHeld.set(slot, { ...input, weaponSelect: -1, weaponDelta: 0 });
+    for (const t of [...this.history.keys()]) if (t <= m.tick) this.history.delete(t);
+    this.dirty = true; // the prediction restarts from this confirmed tick the next time it runs
+    this.present(m);
+    this.result = matchResult(m);
+  }
+
+  /** The device's current input; weapon pulses wait for the next predicted tick. */
+  setLocalInput(i: InputState): void {
+    this.held = { ...i, weaponSelect: -1, weaponDelta: 0 };
+    if (i.weaponSelect !== -1) this.pulseSel = i.weaponSelect;
+    if (i.weaponDelta !== 0) this.pulseDelta = i.weaponDelta;
+  }
+
+  /** The tick the next local input will apply from (sent with the input, so the server uses it at the same tick). */
+  get nextTick(): number {
+    return this.shown.tick + 1;
+  }
+
+  /** Runs the predicted simulation up to `target` with the local input; confirmed ticks correct it as they arrive. */
+  predictTo(target: number): void {
+    if (this.dirty) this.rebuildPrediction();
+    for (let n = 0; this.shown.tick < target && n < 12; n++) this.predictStep();
+  }
+
+  private predictedInputs(local: InputState): Map<number, InputState> {
+    const inputs = new Map(this.remoteHeld);
+    inputs.set(this.localSlot, local);
+    return inputs;
+  }
+
+  private predictStep(): void {
+    this.snapPrev(this.shown);
+    const local: InputState = { ...this.held, weaponSelect: this.pulseSel, weaponDelta: this.pulseDelta };
+    this.pulseSel = -1;
+    this.pulseDelta = 0;
+    this.history.set(this.shown.tick + 1, local);
+    step(this.shown, this.predictedInputs(local));
+    this.shown.events.length = 0; // sounds and effects come from confirmed ticks only
+    this.updateCamera();
+  }
+
+  /** A confirmed tick arrived: restart from the confirmed state and replay the local input that is still unconfirmed. */
+  private rebuildPrediction(): void {
+    const to = this.shown.tick;
+    this.shown = cloneMatch(this.auth);
+    this.dirty = false;
+    if (to <= this.shown.tick) { this.snapPrev(this.shown); return; }
+    for (let t = this.shown.tick + 1; t <= to; t++) {
+      if (t === to) this.snapPrev(this.shown); // interpolate over the last replayed tick only
+      step(this.shown, this.predictedInputs(this.history.get(t) ?? { ...this.held, weaponSelect: -1, weaponDelta: 0 }));
+      this.shown.events.length = 0;
+    }
   }
 
   private advance(inputs: Map<number, InputState>): void {
-    const m = this.match;
-    this.snapPrev();
+    const m = this.shown; // solo: the same object as `auth`
+    this.snapPrev(m);
     step(m, inputs);
+    this.present(m);
+    this.updateCamera();
+    this.result = matchResult(m);
+  }
+
+  /** Sounds, effects, haptics and animation for one confirmed tick of `m`. */
+  private present(m: Match): void {
     advanceWorldAnim(this.anim, m.tick);
     this.effects.advance();
     this.effects.spawn(m.events, m.tick);
@@ -111,8 +197,6 @@ export class GameSession {
     if (me.hp < this.lastHp) this.deps.platform.haptic(me.hp <= 0 ? 'medium' : 'light');
     this.lastHp = me.hp;
     if (this.toast && --this.toast.ticks <= 0) this.toast = null;
-    this.updateCamera();
-    this.result = matchResult(m);
   }
 
   private updateCamera(): void {

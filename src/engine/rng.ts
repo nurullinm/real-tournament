@@ -10,6 +10,9 @@ export interface Rng {
   range(a: number, b: number): number;
   /** U_RndBinary(mask): nextInt() & mask */
   bits(mask: number): number;
+  /** the generator's whole state, so a match can be copied and replayed (client-side prediction) */
+  getState(): number;
+  setState(state: number): void;
 }
 
 export function createRng(seed: number): Rng {
@@ -28,5 +31,7 @@ export function createRng(seed: number): Rng {
     int: (n) => (nextInt() & 0x7fffffff) % n,
     range: (a, b) => (nextInt() & 0x7fffffff) % (b - a + 1) + a,
     bits: (mask) => nextInt() & mask,
+    getState: () => s,
+    setState: (v) => { s = v >>> 0; },
   };
 }

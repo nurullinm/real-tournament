@@ -12,6 +12,7 @@ import { createKeyboardInput, mergeInputs } from './input/keyboard';
 import { createTouchInput } from './input/touch';
 import { inputToCmd } from './engine/match';
 import { connectRoom, type NetClient } from './net/client';
+import { TickClock } from './net/clock';
 import { Lockstep } from './net/lockstep';
 import { cleanName, randomCode, type RoomConfig } from './net/protocol';
 import type { LobbyView } from './ui/screens';
@@ -119,6 +120,8 @@ async function boot(): Promise<void> {
   let mySlot = 0;
   let roomCode = '';
   let lobbyView: LobbyView | null = null;
+  const clock = new TickClock();
+  let pingTimer: ReturnType<typeof setInterval> | null = null;
   let lastCmd = 0;
   const tgInitData = (): string => (globalThis as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData ?? '';
   const tgName = (): string => (globalThis as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { first_name?: string } } } } }).Telegram?.WebApp?.initDataUnsafe?.user?.first_name ?? '';
@@ -127,6 +130,8 @@ async function boot(): Promise<void> {
   function leaveRoom(): void {
     net?.close();
     net = null;
+    if (pingTimer) clearInterval(pingTimer);
+    pingTimer = null;
     lockstep = null;
     online = false;
     lobbyView = null;
@@ -145,7 +150,8 @@ async function boot(): Promise<void> {
             if (!session) ui.showLobby(lobbyView);
             break;
           case 'start': startOnline(m); break;
-          case 'tick': lockstep?.push(m.n, m.i, m.d); break;
+          case 'tick': lockstep?.push(m.n, m.i, m.d); clock.onTick(m.n, performance.now()); break;
+          case 'pong': clock.onPong(m.ts, performance.now()); break;
           case 'error': leaveRoom(); ui.showMultiplayer(t(`mp.err.${m.reason}`)); break;
         }
       },
@@ -169,6 +175,8 @@ async function boot(): Promise<void> {
     online = true;
     lastCmd = 0;
     lastTickAt = performance.now();
+    pingTimer = setInterval(() => net?.send({ t: 'ping', ts: performance.now() }), 1000);
+    net?.send({ t: 'ping', ts: performance.now() });
     session = new GameSession(opts, m.seed, { sprites, audio, platform, assets, maps }, m.slot, m.names);
     audio.playMusic(musicForMap(opts.mapId));
     ui.hide();
@@ -176,15 +184,20 @@ async function boot(): Promise<void> {
     resize();
     loop.start();
   }
-  /** Sends input only when it changes (held buttons) or carries a one-shot weapon pulse. */
-  function sendInput(): ReturnType<typeof mergeInputs> {
+  /**
+   * Samples the input, hands it to the prediction and sends it to the room when it changes (held buttons) or carries a
+   * one-shot weapon pulse. The input is stamped with the tick it first applies to, so the server uses it at that same tick.
+   */
+  function sendInput(): void {
+    if (!session) return;
     const input = mergeInputs(touch.state(), keyboard.state());
     const c = inputToCmd(input);
+    const at = session.nextTick;
+    session.setLocalInput(input);
     if (c !== lastCmd || input.weaponSelect !== -1 || input.weaponDelta !== 0) {
       lastCmd = c;
-      net?.send({ t: 'in', c, ws: input.weaponSelect, wd: input.weaponDelta });
+      net?.send({ t: 'in', c, ws: input.weaponSelect, wd: input.weaponDelta, at });
     }
-    return input;
   }
 
   /**
@@ -195,15 +208,18 @@ async function boot(): Promise<void> {
   const pumpNet = (): void => {
     if (!session || !lockstep || !online) return;
     sendInput();
-    // after a stall (background, slow network) catch up faster than real time
+    // confirmed ticks from the server (after a stall, catch up faster than real time)
     const n = lockstep.backlog > 4 ? Math.min(lockstep.backlog - 2, 12) : lockstep.backlog;
     for (let i = 0; i < n; i++) {
       const nt = lockstep.pull();
       if (!nt) break;
       session.tickNet(nt);
-      lastTickAt = performance.now();
       if (session.result.over) { net?.send({ t: 'over' }); finishMatch(); return; }
     }
+    // client-side prediction: run the local simulation ahead of the server with the player's own input
+    const before = session.match.tick;
+    session.predictTo(clock.target(performance.now()));
+    if (session.match.tick !== before) lastTickAt = performance.now();
   };
 
   const tickOnce = (): void => {
@@ -254,14 +270,14 @@ async function boot(): Promise<void> {
     if (!online) loop.pause();
     touch.releaseAll();
     keyboard.releaseAll();
-    ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0, scoreboard(session.match, session.localSlot, session.names));
+    ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0, scoreboard(session.authoritative, session.localSlot, session.names));
   }
   function finishMatch(): void {
     if (!session) return;
     loop.pause();
     touch.releaseAll();
     ui.setPauseButton(false);
-    ui.showResult(session.match, online ? { names: session.names, slot: session.localSlot } : undefined);
+    ui.showResult(session.authoritative, online ? { names: session.names, slot: session.localSlot } : undefined);
     if (online) leaveRoom();
   }
   function toMenu(): void {

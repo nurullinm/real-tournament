@@ -6,9 +6,12 @@ import {
 
 interface Env { ROOMS: DurableObjectNamespace; BOT_TOKEN?: string; ALLOWED_ORIGIN?: string }
 
+const MAX_AHEAD = 30; // ticks a client may stamp into the future (about 2 s)
 const idle = (): WireInput => ({ c: 0, ws: -1, wd: 0 });
 
-interface Player { slot: number; name: string; color: number; team: number; ws: WebSocket; host: boolean; held: number; ws_: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; alive: boolean }
+interface Player { slot: number; name: string; color: number; team: number; ws: WebSocket; host: boolean; held: number; ws_: -1 | 0 | 1 | 2; wd: -1 | 0 | 1; alive: boolean;
+  /** inputs waiting for their tick, sorted by `at` */
+  queue: { at: number; c: number; ws: -1 | 0 | 1 | 2; wd: -1 | 0 | 1 }[] }
 
 export class Room {
   private players = new Map<number, Player>();
@@ -64,7 +67,7 @@ export class Room {
         // CTF: the team with fewer players (blue first)
         const inTeam1 = live.filter((p) => p.team === 1).length;
         const team = live.length - inTeam1 > inTeam1 ? 1 : 0;
-        me = { slot, name, color, team, ws, host: live.length === 0, held: 0, ws_: -1, wd: 0, alive: true };
+        me = { slot, name, color, team, ws, host: live.length === 0, held: 0, ws_: -1, wd: 0, alive: true, queue: [] };
         this.players.set(slot, me);
         this.cfg = clampConfig(this.cfg, live.length + 1);
         this.send(ws, { t: 'welcome', slot, code: '' });
@@ -101,10 +104,16 @@ export class Room {
           break;
         case 'in':
           if (this.started) {
-            me.held = msg.c & 0xffff;
-            if (msg.ws !== -1) me.ws_ = msg.ws;
-            if (msg.wd !== 0) me.wd = msg.wd;
+            // an input is meant for tick `at` (the client predicts ahead); a late or unstamped one applies at the next tick
+            const at = typeof msg.at === 'number' && Number.isFinite(msg.at) ? Math.min(Math.max(Math.floor(msg.at), 0), this.tick + MAX_AHEAD) : 0;
+            const entry = { at, c: msg.c & 0xffff, ws: msg.ws, wd: msg.wd };
+            let i = me.queue.length;
+            while (i > 0 && me.queue[i - 1]!.at > at) i--;
+            me.queue.splice(i, 0, entry);
           }
+          break;
+        case 'ping':
+          this.send(ws, { t: 'pong', ts: msg.ts });
           break;
         case 'over':
           this.stop();
@@ -146,6 +155,12 @@ export class Room {
     for (let s = 0; s < MAX_PLAYERS; s++) {
       const p = this.players.get(s);
       if (!p || !p.alive) { i.push(idle()); continue; }
+      while (p.queue.length > 0 && p.queue[0]!.at <= this.tick) {
+        const e = p.queue.shift()!;
+        p.held = e.c;
+        if (e.ws !== -1) p.ws_ = e.ws;
+        if (e.wd !== 0) p.wd = e.wd;
+      }
       i.push({ c: p.held, ws: p.ws_, wd: p.wd });
       p.ws_ = -1; p.wd = 0; // pulses are delivered exactly once
     }
