@@ -2,6 +2,9 @@
 export const BOT_SKIN = 4;
 const VEST: [number, number, number][] = [[44, 84, 235], [222, 44, 44], [46, 176, 76], [236, 206, 44], [88, 90, 98]];
 
+/** helmet / face skin tones (see isVestOrange) */
+const HEAD_ORANGES: [number, number, number][] = [[182, 123, 32], [235, 175, 83]];
+
 /** shade reference: the light vest orange; darker and lighter oranges scale the new colour the same way */
 const REF_LUM = 0.3 * 224 + 0.59 * 152 + 0.11 * 40;
 
@@ -10,7 +13,9 @@ const REF_LUM = 0.3 * 224 + 0.59 * 152 + 0.11 * 40;
  * (red > green > blue with a real green-over-blue gap): olive cloth, grey metal and the red/blue flags do not match.
  */
 export function isVestOrange(r: number, g: number, b: number): boolean {
-  return r - g >= 18 && g - b >= 10 && r - b >= 45;
+  if (!(r - g >= 18 && g - b >= 10 && r - b >= 45)) return false;
+  // the helmet and face use two oranges the vest never does: they stay as they are in every sprite and frame
+  return !HEAD_ORANGES.some(([hr, hg, hb]) => Math.abs(r - hr) <= 6 && Math.abs(g - hg) <= 6 && Math.abs(b - hb) <= 6);
 }
 
 /**

@@ -24,11 +24,12 @@ describe('vest skins', () => {
   it('repaints the orange torso in every shade below the head, nothing else', () => {
     const d = sprite();
     tintVest(d, 4, 6, 2, 0); // blue vest, torso starts at row 2
-    for (const [x, y] of [[0, 2], [1, 2], [0, 4], [1, 4], [0, 5]] as const) expect(px(d, x, y)[2]).toBeGreaterThan(px(d, x, y)[0]!); // blue now
+    for (const [x, y] of [[0, 2], [1, 2], [1, 4], [0, 5]] as const) expect(px(d, x, y)[2]).toBeGreaterThan(px(d, x, y)[0]!); // blue now
     expect(px(d, 0, 0)).toEqual([224, 152, 40]); // head rows keep their skin
     expect(px(d, 0, 1)).toEqual([182, 123, 32]);
     expect(px(d, 2, 3)).toEqual([112, 104, 56]); // olive cloth
     expect(px(d, 3, 3)).toEqual([207, 14, 14]); // a carried red flag
+    expect(px(d, 0, 4)).toEqual([235, 175, 83]); // face-highlight orange is never vest
     expect(px(d, 2, 4)).toEqual([184, 176, 112]);
     expect(px(d, 3, 4)).toEqual([90, 90, 89]);
   });
@@ -52,6 +53,8 @@ describe('vest skins', () => {
   it('matches only orange-brown pixels', () => {
     expect(isVestOrange(224, 152, 40)).toBe(true);
     expect(isVestOrange(149, 100, 23)).toBe(true);
+    expect(isVestOrange(182, 123, 32)).toBe(false); // helmet orange
+    expect(isVestOrange(235, 175, 83)).toBe(false); // face highlight
     expect(isVestOrange(83, 64, 24)).toBe(true);
     expect(isVestOrange(112, 104, 56)).toBe(false);
     expect(isVestOrange(207, 14, 14)).toBe(false);
