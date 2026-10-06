@@ -164,6 +164,7 @@ export const en = {
   'mp.team.blue': 'Blue',
   'mp.team.red': 'Red',
   'mp.ctfbots': '2 vs 2: bots fill the empty places.',
+  'common.done': 'Done',
 } as const;
 
 export type Key = keyof typeof en;

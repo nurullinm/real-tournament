@@ -93,10 +93,29 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
   applyStatic();
   onLangChange(applyStatic);
   root.append(menu, over, pauseBtn, rotate);
-  // a tap anywhere outside a text field closes the on-screen keyboard
+  // The on-screen keyboard: a tap outside the field closes it, a floating "Done" button is always reachable (in landscape
+  // the keyboard hides nearly the whole screen), and the windows shrink to the visible part of the screen.
+  const kbDone = h('button', { class: 'kbdone', text: t('common.done'), onclick: () => (document.activeElement as HTMLElement | null)?.blur() });
+  root.append(kbDone);
+  const fitToViewport = (): void => {
+    const vv = window.visualViewport;
+    root.style.setProperty('--vvh', `${vv ? vv.height : window.innerHeight}px`);
+    root.style.setProperty('--vvt', `${vv ? vv.offsetTop : 0}px`);
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+  };
+  const typing = (): boolean => document.activeElement instanceof HTMLInputElement && root.contains(document.activeElement);
+  const syncKeyboard = (): void => {
+    for (const el of [root, menu, over]) el.classList.toggle('kb', typing());
+    if (typing()) fitToViewport();
+  };
+  root.addEventListener('focusin', syncKeyboard);
+  root.addEventListener('focusout', () => setTimeout(syncKeyboard, 0)); // moving between two fields keeps the layout
+  window.visualViewport?.addEventListener('resize', syncKeyboard);
+  window.visualViewport?.addEventListener('scroll', syncKeyboard);
   root.addEventListener('pointerdown', (e) => {
     const a = document.activeElement;
-    if (a instanceof HTMLInputElement && e.target !== a) a.blur();
+    if (a instanceof HTMLInputElement && e.target !== a && e.target !== kbDone) a.blur();
   }, true);
   let isOpen = false;
 
@@ -239,8 +258,9 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
 
   function multiplayerScreen(error?: string): void {
     clear(menu);
-    const code = h('input', { class: 'input code', type: 'text', maxlength: CODE_LENGTH, placeholder: t('mp.code.ph'), 'aria-label': t('mp.code'), autocomplete: 'off', autocapitalize: 'characters' }) as HTMLInputElement;
+    const code = h('input', { class: 'input code', type: 'text', maxlength: CODE_LENGTH, placeholder: t('mp.code.ph'), 'aria-label': t('mp.code'), autocomplete: 'off', autocapitalize: 'characters', enterkeyhint: 'go' }) as HTMLInputElement;
     code.addEventListener('input', () => { code.value = normalizeCode(code.value); });
+    code.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') { code.blur(); if (code.value.length === CODE_LENGTH) handlers.mpJoin(code.value); } });
     const msg = h('div', { class: 'mp-msg', text: error ?? '' });
     const join = (): void => {
       if (code.value.length !== CODE_LENGTH) { msg.textContent = t('mp.err.short'); return; }
