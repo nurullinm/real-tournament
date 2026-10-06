@@ -141,4 +141,13 @@ export const ru: Record<Key, string> = {
   'mp.stall': 'Ждём остальных игроков…',
   'settings.nickname': 'Никнейм',
   'result.player': 'Игрок {n}',
+  'hud.enemy': 'Враг',
+  'mp.bot': 'Бот {n}',
+  'sb.kills': 'У',
+  'sb.deaths': 'С',
+  'sb.title': 'Счёт',
+  'mp.botskill': 'Сложность ботов',
+  'mp.or': 'или войдите по коду',
+  'mp.nickhint': 'Увидят другие игроки',
+  'mp.botcount': 'Ботов',
 };

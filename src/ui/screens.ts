@@ -1,7 +1,7 @@
 import type { AllyOrder } from '../bots';
 import type { Match } from '../engine/types';
 import { botName, colorName, ctfMapName, dmMapName, onLangChange, orderLabel, skillName, t, type LangPref } from '../i18n';
-import { teamFragLine } from '../game/stats';
+import { scoreboard, type ScoreRow } from '../game/stats';
 import { clear, h } from './dom';
 import { cleanName, CODE_LENGTH, MAX_PLAYERS, NAME_MAX, normalizeCode, type LobbyPlayer, type RoomConfig } from '../net/protocol';
 import { cycle, type GameSettings } from './settings';
@@ -34,7 +34,7 @@ export interface Ui {
   showConnecting(): void;
   showLobby(view: LobbyView): void;
   /** `note` is shown at the right of the window header (e.g. the team's frags) */
-  showPause(canOrder: boolean, currentOrder: number, note?: string): void;
+  showPause(canOrder: boolean, currentOrder: number, board?: ScoreRow[], note?: string): void;
   showResult(m: Match, online?: { names: string[]; slot: number }): void;
   hide(): void;
   /** true while any menu/overlay is covering the game */
@@ -54,6 +54,8 @@ interface WindowParts {
   footer?: HTMLElement[];
   /** result card: smaller, no fixed height */
   small?: boolean;
+  /** taller window for dense pages (online lobby) */
+  tall?: boolean;
   /** extra class for the body (e.g. spaced sections) */
   bodyClass?: string;
   /** small muted text at the right of the header */
@@ -99,7 +101,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     if (p.onBack) head.append(h('button', { class: 'back', 'aria-label': t('common.back'), onclick: p.onBack }));
     head.append(h('h2', { text: p.title }));
     if (p.note) head.append(h('div', { class: 'head-note', text: p.note }));
-    const el = h('div', { class: `win${p.small ? ' small' : ''}` }, head, h('div', { class: `win-body${p.bodyClass ? ` ${p.bodyClass}` : ''}` }, ...p.body));
+    const el = h('div', { class: `win${p.small ? ' small' : ''}${p.tall ? ' tall' : ''}` }, head, h('div', { class: `win-body${p.bodyClass ? ` ${p.bodyClass}` : ''}` }, ...p.body));
     if (p.footer?.length) el.append(h('div', { class: 'win-foot' }, ...p.footer));
     return el;
   }
@@ -199,7 +201,23 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
   const nickField = (): HTMLElement => {
     const input = h('input', { class: 'input', type: 'text', maxlength: NAME_MAX, placeholder: t('mp.nick.ph'), 'aria-label': t('mp.nick'), autocomplete: 'off', value: settings.nickname }) as HTMLInputElement;
     input.addEventListener('input', () => { settings.nickname = cleanName(input.value, ''); save(); });
-    return h('div', { class: 'row' }, h('div', { class: 'label', text: t('mp.nick') }), input);
+    return h('div', { class: 'field' }, h('div', { class: 'plabel', text: t('mp.nick') }), input);
+  };
+
+  /** Counter-Strike style mini table: who has how many kills and deaths. */
+  const scoreTable = (rows: ScoreRow[]): HTMLElement => {
+    const g = h('div', { class: 'sb' });
+    g.append(h('div', { class: 'sb-h' }), h('div', { class: 'sb-h', text: '' }), h('div', { class: 'sb-h n', text: t('sb.kills') }), h('div', { class: 'sb-h n', text: t('sb.deaths') }));
+    for (const r of rows) {
+      const cls = r.you ? 'you' : '';
+      g.append(
+        h('div', { class: `sb-c dot-c ${cls}` }, h('span', { class: 'dot', style: `background:${SIDE_CSS[r.color] ?? '#fff'}` })),
+        h('div', { class: `sb-c nm ${cls}`, text: r.name }),
+        h('div', { class: `sb-c n ${cls}`, text: String(r.kills) }),
+        h('div', { class: `sb-c n ${cls}`, text: String(r.deaths) }),
+      );
+    }
+    return g;
   };
 
   function multiplayerScreen(error?: string): void {
@@ -214,10 +232,12 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     menu.append(win({
       title: t('mp.title'),
       onBack: () => mainScreen(false),
+      bodyClass: 'mp',
       body: [
         nickField(),
-        h('div', { class: 'row actions' }, button(t('mp.create'), handlers.mpCreate, 'primary')),
-        h('div', { class: 'row' }, h('div', { class: 'label', text: t('mp.code') }), code, button(t('mp.join'), join, 'chip')),
+        button(t('mp.create'), handlers.mpCreate, 'primary'),
+        h('div', { class: 'mp-or', text: t('mp.or') }),
+        h('div', { class: 'joinrow' }, code, button(t('mp.join'), join, 'chip')),
         msg,
       ],
     }));
@@ -232,20 +252,20 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
 
   function lobbyScreen(v: LobbyView): void {
     clear(menu);
-    const list = h('div', { class: 'plist' });
+    const players = h('div', { class: 'pgrid' });
     for (const p of v.players) {
-      list.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
+      players.append(h('div', { class: `pl${p.slot === v.slot ? ' me' : ''}` },
         h('span', { class: 'dot', style: `background:${SIDE_CSS[p.slot] ?? '#fff'}` }),
         h('span', { class: 'pname', text: p.name }),
-        h('span', { class: 'ptag', text: [p.host ? t('mp.host') : '', p.slot === v.slot ? t('mp.you') : ''].filter(Boolean).join(' · ') })));
+        h('span', { class: 'ptag', text: p.host ? '★' : '' })));
     }
-    const body: HTMLElement[] = [
-      h('div', { class: 'code-big', text: v.code }),
-      button(t('mp.share'), () => shareRoom(v.code), 'chip'),
-      h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }),
-      list,
-    ];
     const cfg = v.cfg;
+    const none = (n: number): string => (n === 0 ? t('common.none') : String(n));
+    const body: HTMLElement[] = [
+      h('div', { class: 'coderow' }, h('div', { class: 'code-big', text: v.code }), button(t('mp.share'), () => shareRoom(v.code), 'chip')),
+      h('div', { class: 'plabel', text: `${t('mp.players')} ${v.players.length}/${MAX_PLAYERS}` }),
+      players,
+    ];
     if (v.host) {
       const push = (patch: Partial<RoomConfig>): void => { handlers.mpConfig({ ...cfg, ...patch }); };
       const row = (label: string, value: string, change: (d: -1 | 1) => void): HTMLElement => h('div', { class: 'row' },
@@ -253,23 +273,29 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         h('button', { class: 'btn arrow', text: '◀', onclick: () => change(-1) }),
         h('div', { class: 'value', text: value, role: 'button', onclick: () => change(1) }),
         h('button', { class: 'btn arrow', text: '▶', onclick: () => change(1) }));
-      const minTotal = Math.max(2, v.players.length);
-      const totals = Array.from({ length: MAX_PLAYERS - minTotal + 1 }, (_, i) => minTotal + i);
+      const minBots = v.players.length <= 1 ? 1 : 0;
+      const maxBots = MAX_PLAYERS - v.players.length;
       body.push(
         row(t('setup.map'), dmMapName(cfg.mapId), (d) => push({ mapId: cycle(cfg.mapId, d, 7) })),
-        row(t('mp.fighters'), `${cfg.total} (${t('mp.bots', { n: cfg.total - v.players.length })})`, (d) => push({ total: totals[cycle(Math.max(0, totals.indexOf(cfg.total)), d, totals.length)]! })),
-        row(t('setup.fragLimit'), cfg.fragLimit === 0 ? t('common.none') : String(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
-        row(t('setup.skill'), skillName(cfg.skill), (d) => push({ skill: cycle(cfg.skill, d, 5) as RoomConfig['skill'] })),
+        row(t('mp.botcount'), String(cfg.bots), (d) => push({ bots: minBots + cycle(cfg.bots - minBots, d, maxBots - minBots + 1) })),
+        row(t('mp.botskill'), skillName(cfg.skill), (d) => push({ skill: cycle(cfg.skill, d, 5) as RoomConfig['skill'] })),
+        row(t('setup.fragLimit'), none(cfg.fragLimit), (d) => push({ fragLimit: cycle(cfg.fragLimit / 5, d, 9) * 5 })),
       );
     } else {
+      const line = (k: string, val: string): HTMLElement => h('div', { class: 'kv' }, h('span', { text: k }), h('b', { text: val }));
       body.push(
-        h('div', { class: 'help', text: `${dmMapName(cfg.mapId)} · ${t('mp.fighters')}: ${cfg.total} · ${t('setup.fragLimit')}: ${cfg.fragLimit === 0 ? t('common.none') : cfg.fragLimit}` }),
+        line(t('setup.map'), dmMapName(cfg.mapId)),
+        line(t('mp.botcount'), String(cfg.bots)),
+        line(t('mp.botskill'), skillName(cfg.skill)),
+        line(t('setup.fragLimit'), none(cfg.fragLimit)),
         h('div', { class: 'help', text: t('mp.wait') }),
       );
     }
     menu.append(win({
       title: t('mp.title'),
       onBack: handlers.mpLeave,
+      bodyClass: 'mp compact',
+      tall: true,
       body,
       footer: v.host ? [button(t('mp.start'), handlers.mpStart, 'primary')] : [button(t('mp.leave'), handlers.mpLeave, 'quiet')],
     }));
@@ -319,10 +345,10 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
     showMultiplayer: multiplayerScreen,
     showConnecting: connectingScreen,
     showLobby: lobbyScreen,
-    showPause(canOrder, currentOrder, note): void {
+    showPause(canOrder, currentOrder, board, note): void {
       clear(over);
       const chip = (text: string, onclick: () => void, cls = ''): HTMLElement => h('button', { class: `btn chip ${cls}`, text, onclick });
-      const body: HTMLElement[] = [];
+      const body: HTMLElement[] = board ? [h('div', { class: 'psec' }, scoreTable(board))] : [];
       if (canOrder) {
         const row = h('div', { class: 'prow wrap' });
         for (let i = 0; i < 3; i++) row.append(chip(orderLabel(i), () => { handlers.allyOrder(i as AllyOrder); handlers.resume(); }, i === currentOrder ? 'hot' : ''));
@@ -334,7 +360,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         sound.textContent = soundText();
         save();
       });
-      body.push(h('div', { class: 'prow' }, sound, chip(t('menu.help'), () => helpScreen(() => this.showPause(canOrder, currentOrder, note), over))));
+      body.push(h('div', { class: 'prow' }, sound, chip(t('menu.help'), () => helpScreen(() => this.showPause(canOrder, currentOrder, board, note), over))));
       over.append(win({
         title: t('pause.title'),
         onBack: handlers.resume,
@@ -362,8 +388,7 @@ export function createUi(root: HTMLElement, settings: GameSettings, handlers: Ui
         );
       });
       const body: HTMLElement[] = [grid];
-      const fragLine = teamFragLine(m, 0);
-      if (fragLine) body.push(h('div', { class: 'fragline', text: fragLine }));
+      body.push(scoreTable(scoreboard(m, online?.slot ?? 0, online?.names ?? [])));
       setPausedUi(false);
       over.append(win({ title: t('result.title'), body, footer: [button(t('common.menu'), handlers.endGame, 'primary')], small: true }));
       open(over);

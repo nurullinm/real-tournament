@@ -143,3 +143,31 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .pl.me { outline: 1px solid var(--accent); }
 .pl .pname { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl .ptag { color: var(--muted); font-size: 12px; }
+
+/* multiplayer pages: breathing room */
+.win-body.mp { gap: 12px; padding: 12px 14px; }
+.win-body.mp .row { min-height: 40px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field .input { flex: none; width: 100%; box-sizing: border-box; }
+.mp-or { text-align: center; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.joinrow { display: flex; gap: 10px; }
+.joinrow .input.code { flex: 1 1 auto; }
+.joinrow .btn { flex: 0 0 110px; }
+.coderow { display: flex; align-items: center; gap: 12px; }
+.coderow .code-big { flex: 1 1 auto; text-align: left; font-size: 26px; }
+.coderow .btn { flex: 0 0 auto; }
+.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pgrid .pl { min-width: 0; }
+.pgrid .pl.empty { justify-content: center; color: var(--muted); }
+.kv { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.kv span { color: var(--muted); }
+/* scoreboard */
+.sb { display: grid; grid-template-columns: 18px 1fr 36px 36px; gap: 4px 8px; align-items: center; font-size: 14px; }
+.sb-h { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.sb .n { text-align: center; font-variant-numeric: tabular-nums; }
+.sb-c.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-c.you { color: var(--accent); font-weight: 700; }
+.win.tall { height: min(404px, calc(100vh - 16px)); }
+.win-body.mp.compact { gap: 8px; padding: 10px 14px; }
+.win-body.mp.compact .row { min-height: 36px; }
+.win-body.mp.compact .row .arrow { min-height: 34px; }

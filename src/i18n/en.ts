@@ -140,6 +140,15 @@ export const en = {
   'mp.stall': 'Waiting for other players…',
   'settings.nickname': 'Nickname',
   'result.player': 'Player {n}',
+  'hud.enemy': 'Enemy',
+  'mp.bot': 'Bot {n}',
+  'sb.kills': 'K',
+  'sb.deaths': 'D',
+  'sb.title': 'Scoreboard',
+  'mp.botskill': 'Bot skill',
+  'mp.or': 'or join with a code',
+  'mp.nickhint': 'Shown to other players',
+  'mp.botcount': 'Bots',
 } as const;
 
 export type Key = keyof typeof en;

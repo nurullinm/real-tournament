@@ -5,7 +5,7 @@ import { createAudio, musicForMap } from './audio/audio';
 import { computeMuzzle } from './engine/muzzle';
 import type { EngineAssets } from './engine/types';
 import { GameSession, TICK_HZ, type FrameInfo } from './game/session';
-import { teamFragLine } from './game/stats';
+import { scoreboard } from './game/stats';
 import { createLoop } from './game/loop';
 import { computeLayout, type Insets } from './input/layout';
 import { createKeyboardInput, mergeInputs } from './input/keyboard';
@@ -160,7 +160,7 @@ async function boot(): Promise<void> {
   }
   function startOnline(m: { seed: number; cfg: RoomConfig; humans: number; names: string[]; slot: number }): void {
     const opts = {
-      mapId: m.cfg.mapId, mode: 'dm' as const, skill: m.cfg.skill, bots: m.cfg.total - 1, fragLimit: m.cfg.fragLimit,
+      mapId: m.cfg.mapId, mode: 'dm' as const, skill: m.cfg.skill, bots: m.humans + m.cfg.bots - 1, fragLimit: m.cfg.fragLimit,
       noMedikits: m.cfg.noMedikits, violence: settings.violence, team: false, playerColor: 0, humans: m.humans,
     };
     mySlot = m.slot;
@@ -240,7 +240,7 @@ async function boot(): Promise<void> {
     if (!online) loop.pause();
     touch.releaseAll();
     keyboard.releaseAll();
-    ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0, teamFragLine(session.match, 0));
+    ui.showPause(session.canOrderAlly, session.match.fighters[1]?.aiOrder ?? 0, scoreboard(session.match, session.localSlot, session.names));
   }
   function finishMatch(): void {
     if (!session) return;

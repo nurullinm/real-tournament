@@ -13,7 +13,7 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, tick: num
     if (f.isCarrying) drawFrame(ctx, sprites, (f.headsLeft ? f.flagBaseLeft : f.flagBaseRight) + anim.flagFrame, f.x + (f.headsLeft ? 7 : -7), y);
     let frame = (tick & 2) === 0 ? 54 : 55;
     if (!f.headsLeft) frame += 134;
-    drawFrame(ctx, sprites, frame, f.x, y);
+    drawFrame(ctx, sprites, frame, f.x, y, f.skin);
   } else {
     if (f.isCarrying) drawFrame(ctx, sprites, (f.headsLeft ? f.flagBaseLeft : f.flagBaseRight) + anim.flagFrame, f.x, y);
     const frame = f.frame + (f.headsLeft ? 0 : 134);
@@ -28,7 +28,7 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, tick: num
         if (wp && wp.sub >= 0) drawSub(ctx, sprites, wp.sub, f.x + wp.x, y + wp.y);
         break;
       }
-      drawSub(ctx, sprites, part.sub, f.x + part.x, y + part.y);
+      drawSub(ctx, sprites, part.sub, f.x + part.x, y + part.y, f.skin);
     }
   }
   if (f.hp > 0) {

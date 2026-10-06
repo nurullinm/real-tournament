@@ -1,4 +1,5 @@
 import type { GameMap } from '../assets/types';
+import { BOT_SKIN } from '../assets/skins';
 import { canShoot } from './fighter';
 import { moveFighter } from './fighterStep';
 import { stepProjectiles } from './combat';
@@ -18,7 +19,13 @@ export function createMatch(opts: MatchOptions, map: GameMap, seed: number, asse
   m.fighters.forEach((f, i) => { f.human = i < humans; });
   if (opts.mode === 'dm') setupDeathmatch(m);
   else setupCtf(m);
+  m.fighters.forEach((f) => { f.skin = skinFor(m, f); });
   return m;
+}
+
+/** Deathmatch: people wear their own colour and bots are dark grey; CTF: everybody wears the team colour. */
+export function skinFor(m: Match, f: { human: boolean; color: number }): number {
+  return m.gameMode === 1 || f.human ? f.color : BOT_SKIN;
 }
 
 export function inputToCmd(i: InputState): number {

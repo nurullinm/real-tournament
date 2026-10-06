@@ -6,6 +6,12 @@ const MAP: Record<string, keyof Pick<InputState, 'left' | 'right' | 'jump' | 'fi
   Space: 'fire', KeyF: 'fire', KeyJ: 'fire', ArrowDown: 'action', KeyS: 'action',
 };
 
+/** True while a text field has focus. */
+function isTyping(t: EventTarget | null): boolean {
+  const el = t as { tagName?: string; isContentEditable?: boolean } | null;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true);
+}
+
 export interface KeyboardInput {
   state(): InputState;
   releaseAll(): void;
@@ -19,7 +25,7 @@ export function createKeyboardInput(target: Pick<Window, 'addEventListener' | 'r
   let select: -1 | 0 | 1 | 2 = -1;
   const down = (e: Event): void => {
     const k = e as KeyboardEvent;
-    if (k.repeat) return;
+    if (k.repeat || isTyping(k.target)) return; // typing a nickname must not steal A/E/W/S... from the text field
     if (k.code === 'KeyQ') delta = -1;
     else if (k.code === 'KeyE') delta = 1;
     else if (k.code === 'Digit1') select = 0;

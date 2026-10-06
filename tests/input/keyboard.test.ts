@@ -49,3 +49,18 @@ describe('mergeInputs', () => {
     expect(mergeInputs(a, b)).toMatchObject({ left: true, fire: true, weaponDelta: -1, weaponSelect: 2 });
   });
 });
+
+describe('typing in a text field', () => {
+  it('does not steal letters (A, E, W, S, D...) from the nickname input', () => {
+    const listeners: Record<string, (e: unknown) => void> = {};
+    const t = { addEventListener: (n: string, f: (e: unknown) => void) => { listeners[n] = f; }, removeEventListener: () => {} };
+    const kb = createKeyboardInput(t as unknown as Window);
+    let prevented = false;
+    listeners.keydown!({ code: 'KeyA', repeat: false, target: { tagName: 'INPUT' }, preventDefault: () => { prevented = true; } });
+    expect(prevented).toBe(false);
+    expect(kb.state().left).toBe(false);
+    listeners.keydown!({ code: 'KeyA', repeat: false, target: { tagName: 'DIV' }, preventDefault: () => { prevented = true; } });
+    expect(prevented).toBe(true);
+    expect(kb.state().left).toBe(true);
+  });
+});

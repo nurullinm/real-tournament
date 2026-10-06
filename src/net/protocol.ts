@@ -8,8 +8,8 @@ export const NET_TICK_MS = 60;
 
 export interface RoomConfig {
   mapId: number; // DM maps 0..6
-  /** total fighters in the match (humans + bots), 2..4 */
-  total: number;
+  /** AI bots filling the match; humans + bots is at most 4 and at least 2 */
+  bots: number;
   /** frags to win (0 = none) */
   fragLimit: number;
   skill: 0 | 1 | 2 | 3 | 4;
@@ -17,7 +17,7 @@ export interface RoomConfig {
   noMedikits: boolean;
 }
 
-export const DEFAULT_CONFIG: RoomConfig = { mapId: 0, total: 4, fragLimit: 10, skill: 2, violence: true, noMedikits: false };
+export const DEFAULT_CONFIG: RoomConfig = { mapId: 0, bots: 3, fragLimit: 10, skill: 2, violence: true, noMedikits: false };
 
 export interface LobbyPlayer { slot: number; name: string; host: boolean }
 
@@ -50,7 +50,7 @@ export function clampConfig(c: Partial<RoomConfig> | undefined, humans: number):
   const num = (v: unknown, lo: number, hi: number, def: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : def);
   return {
     mapId: num(c?.mapId, 0, 6, d.mapId),
-    total: num(c?.total, Math.max(2, humans), MAX_PLAYERS, d.total),
+    bots: num(c?.bots, humans <= 1 ? 1 : 0, MAX_PLAYERS - humans, Math.min(d.bots, MAX_PLAYERS - humans)),
     fragLimit: num(c?.fragLimit, 0, 50, d.fragLimit),
     skill: num(c?.skill, 0, 4, d.skill) as RoomConfig['skill'],
     violence: c?.violence !== false,

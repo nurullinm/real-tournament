@@ -99,3 +99,26 @@ describe('personal frags', () => {
     expect(m.fighters[1]!.frags).toBe(-1);
   });
 });
+
+describe('deaths and the mini scoreboard', () => {
+  it('count every death (also suicides) next to frags', () => {
+    const m = team();
+    kill(m, 0, 2);
+    kill(m, 0, 2);
+    kill(m, 2, 0);
+    applyDamage(m, m.fighters[1]!.side, m.fighters[1]!, 999, false, false, null); // fell/suicide
+    expect(m.fighters.map((f) => f.deaths)).toEqual([1, 1, 2, 0]);
+    expect(m.fighters.map((f) => f.frags)).toEqual([2, -1, 1, 0]);
+  });
+
+  it('lists everybody best first, marks the local player and names online players', async () => {
+    const { scoreboard } = await import('../../src/game/stats');
+    const m = createMatch({ ...DM_OPTS, bots: 3, humans: 2 }, REAL_MAPS[0]!, 1, REAL_ASSETS);
+    m.fighters[1]!.frags = 3; m.fighters[1]!.deaths = 1;
+    m.fighters[0]!.frags = 1;
+    const rows = scoreboard(m, 0, ['Alice', 'Bob']);
+    expect(rows.map((r) => r.name)).toEqual(['Bob', 'Alice', 'Bot 1', 'Bot 2']);
+    expect(rows.find((r) => r.you)!.name).toBe('Alice');
+    expect(rows[0]).toMatchObject({ kills: 3, deaths: 1 });
+  });
+});

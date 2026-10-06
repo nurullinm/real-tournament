@@ -4,7 +4,7 @@ import type { Audio, SoundName } from '../audio/audio';
 import { eventVolume } from '../audio/spatial';
 import { botHooks, setAllyOrder, type AllyOrder } from '../bots';
 import type { NetTick } from '../net/lockstep';
-import { createMatch, matchResult, step, type MatchResult } from '../engine/match';
+import { createMatch, matchResult, skinFor, step, type MatchResult } from '../engine/match';
 import type { EngineAssets, InputState, Match, MatchOptions } from '../engine/types';
 import type { ButtonLayout, ButtonId, Insets } from '../input/layout';
 import type { StickState } from '../input/touch';
@@ -90,6 +90,7 @@ export class GameSession {
       const f = m.fighters[slot];
       if (f && f.human) {
         f.human = false;
+        f.skin = skinFor(m, f);
         m.ai.findNearestNode(m, f);
       }
     }

@@ -72,8 +72,12 @@ export interface Fighter {
   aiOrder: number;
   /** driven by player input (fighters 0..humans-1); everyone else is an AI bot */
   human: boolean;
+  /** vest colour for rendering: 0..3 match colours, 4 = bot (see assets/skins) */
+  skin: number;
   /** personal frag count (kills of enemies; -1 for a suicide or a teammate kill), kept in every mode */
   frags: number;
+  /** how many times this fighter died */
+  deaths: number;
 }
 
 export interface PobjState {

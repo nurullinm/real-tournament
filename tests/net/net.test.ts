@@ -83,9 +83,11 @@ describe('protocol helpers', () => {
   });
 
   it('clamps room config from untrusted input', () => {
-    const c = clampConfig({ mapId: 99, total: 1, fragLimit: -5, skill: 9 as never }, 3);
-    expect(c).toMatchObject({ mapId: 6, total: 3, fragLimit: 0, skill: 4 });
-    expect(clampConfig({ total: 99 }, 1).total).toBe(4);
+    const c = clampConfig({ mapId: 99, bots: 9, fragLimit: -5, skill: 9 as never }, 3);
+    expect(c).toMatchObject({ mapId: 6, bots: 1, fragLimit: 0, skill: 4 });
+    expect(clampConfig({ bots: 99 }, 1).bots).toBe(3);
+    expect(clampConfig({ bots: 0 }, 1).bots).toBe(1); // a lone human needs an opponent
+    expect(clampConfig({ bots: 0 }, 2).bots).toBe(0); // two humans can play alone
     expect(clampConfig(undefined, 1).mapId).toBe(0);
   });
 

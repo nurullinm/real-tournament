@@ -141,6 +141,7 @@ export class Room {
     } else {
       this.players.delete(p.slot);
       if (p.host) { const next = [...this.players.values()].find((q) => q.alive); if (next) next.host = true; }
+      this.cfg = clampConfig(this.cfg, [...this.players.values()].filter((q) => q.alive).length);
       this.lobby();
     }
     if (![...this.players.values()].some((q) => q.alive)) this.stop();

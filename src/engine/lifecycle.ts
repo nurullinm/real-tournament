@@ -64,7 +64,10 @@ export function killFighterCommon(m: Match, side: number, f: Fighter, countScore
     else m.score[side]!++;
     m.events.push({ kind: 'kill', killer: side, victim: f.side });
   }
-  if (countScore) creditFrag(f, killer);
+  if (countScore) {
+    creditFrag(f, killer);
+    f.deaths++;
+  }
   returnFlag(m, f, false);
   setHp(f, 0);
   f.weaponState = 0;
