@@ -47,6 +47,12 @@ export function createPlatform(env: PlatformEnv): Platform {
     tg.ready?.();
     tg.expand?.();
     tg.disableVerticalSwipes?.();
+    // launch fullscreen right away (Bot API 8.0+); older clients keep the expanded view
+    try {
+      if (tg.requestFullscreen && (tg.isVersionAtLeast?.('8.0') ?? true)) tg.requestFullscreen();
+    } catch {
+      /* unsupported client */
+    }
   }
   const isLandscape = (): boolean => env.innerWidth > env.innerHeight;
   return {

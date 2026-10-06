@@ -43,6 +43,7 @@ async function boot(): Promise<void> {
   audio.setEnabled(settings.sound);
 
   let session: GameSession | null = null;
+  let orientationLocked = false;
   let safe: Insets = { l: 0, r: 0, t: 0, b: 0 };
   let css = { w: 0, h: 0, dpr: 1 };
   let layout = computeLayout(1, 1, safe);
@@ -64,6 +65,7 @@ async function boot(): Promise<void> {
     layout = computeLayout(css.w, css.h, safe, !!session?.canOrderAlly);
     touch.setLayout(layout);
     const blocked = !platform.isLandscape();
+    if (!blocked && !orientationLocked) void platform.lockLandscape().then((ok) => { orientationLocked = ok; });
     ui.setRotateOverlay(blocked);
     if (blocked) suspendPlay();
     else resumePlay();

@@ -6,6 +6,14 @@ const base = (over: Partial<PlatformEnv> = {}): PlatformEnv => ({
 });
 
 describe('platform', () => {
+  it('requests fullscreen as soon as the platform starts, on clients that support it', () => {
+    const requestFullscreen = vi.fn();
+    createPlatform(base({ Telegram: { WebApp: { ready() {}, requestFullscreen, isVersionAtLeast: () => true } } }));
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    const old = vi.fn();
+    createPlatform(base({ Telegram: { WebApp: { ready() {}, requestFullscreen: old, isVersionAtLeast: () => false } } }));
+    expect(old).not.toHaveBeenCalled();
+  });
   it('lockLandscape resolves false when no orientation API exists', async () => {
     expect(await createPlatform(base()).lockLandscape()).toBe(false);
   });
