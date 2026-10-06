@@ -217,3 +217,20 @@ describe('layout spacing', () => {
     }
   });
 });
+
+describe('robustness', () => {
+  it('a failing setPointerCapture must not swallow the tap (orders, buttons, stick)', () => {
+    const got: number[] = [];
+    const el = new EventTarget() as unknown as HTMLElement & { setPointerCapture(id: number): void };
+    (el as unknown as { getBoundingClientRect(): { left: number; top: number } }).getBoundingClientRect = () => ({ left: 0, top: 0 });
+    el.setPointerCapture = () => { throw new DOMException('no such pointer', 'NotFoundError'); };
+    const input = createTouchInput(el, layout, { onOrder: (o) => got.push(o) });
+    const fire = (type: string, id: number, p: { x: number; y: number }) =>
+      el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, clientX: p.x, clientY: p.y }));
+    fire('pointerdown', 1, center('order2'));
+    fire('pointerdown', 2, center('fire'));
+    fire('pointerdown', 3, stickAt(0.9));
+    expect(got).toEqual([2]);
+    expect(input.state()).toMatchObject({ fire: true, right: true });
+  });
+});

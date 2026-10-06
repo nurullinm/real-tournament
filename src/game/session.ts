@@ -11,7 +11,7 @@ import type { Platform } from '../platform/telegram';
 import { cameraTarget, computeCamera, followCamera, type Point } from '../render/camera';
 import { Effects } from '../render/effects';
 import { drawActors, drawFighter } from '../render/fighters';
-import { drawControls, drawHud } from '../render/hud';
+import { drawControls, drawHud, drawToast } from '../render/hud';
 import { computeScale } from '../render/scale';
 import { advanceWorldAnim, beginWorld, drawTram, drawWorld, newWorldAnim, TILE } from '../render/world';
 
@@ -19,6 +19,8 @@ export const TICK_HZ = 1000 / 60;
 const TARGET_TILES_H = 14;
 const CAMERA_STEP_X = 6;
 const CAMERA_STEP_Y = 9;
+const TOAST_TICKS = 36;
+const ORDER_TEXT = ['Defend the base', 'Take their flag!', 'Freelance!'] as const;
 
 export interface SessionDeps {
   sprites: Sprites;
@@ -55,6 +57,7 @@ export class GameSession {
   private prevCam: Point = { x: 0, y: 0 };
   private view = { w: 176, h: 192 };
   private lastHp = 100;
+  private toast: { text: string; ticks: number } | null = null;
 
   constructor(opts: MatchOptions, seed: number, private readonly deps: SessionDeps) {
     this.match = createMatch(opts, deps.maps[opts.mapId]!, seed, deps.assets, botHooks);
@@ -87,6 +90,7 @@ export class GameSession {
     }
     if (me.hp < this.lastHp) this.deps.platform.haptic(me.hp <= 0 ? 'medium' : 'light');
     this.lastHp = me.hp;
+    if (this.toast && --this.toast.ticks <= 0) this.toast = null;
     this.updateCamera();
     this.result = matchResult(m);
   }
@@ -103,7 +107,17 @@ export class GameSession {
   }
 
   setAllyOrder(order: AllyOrder): void {
+    if (!this.canOrderAlly) return;
     setAllyOrder(this.match, order);
+    // the ally changes route at his next waypoint, so confirm the order right away
+    this.toast = { text: `Ally: ${ORDER_TEXT[order]}`, ticks: TOAST_TICKS };
+    this.deps.platform.haptic('light');
+    this.deps.audio.play('pickup');
+  }
+
+  /** current order of the ally (fighter 1), or -1 when there is no ally */
+  get allyOrder(): number {
+    return this.canOrderAlly ? this.match.fighters[1]!.aiOrder : -1;
   }
 
   get canOrderAlly(): boolean {
@@ -156,6 +170,7 @@ export class GameSession {
       m.projectiles.forEach((p, i) => { p.x = savedProj[i]!; });
     }
     drawHud(ctx, m, 0, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
-    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr);
+    if (this.toast) drawToast(ctx, this.toast.text, { w: f.w, h: f.h, dpr: f.dpr }, f.safe, f.safe.t + 74);
+    if (f.showControls) drawControls(ctx, f.layout, f.held, f.stick, f.dpr, this.allyOrder);
   }
 }

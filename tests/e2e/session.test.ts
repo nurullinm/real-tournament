@@ -18,6 +18,7 @@ function recorder() {
     get: (t, name: string) => {
       if (name in t) return (t as Record<string, unknown>)[name];
       return (..._a: unknown[]) => {
+        if (name === 'measureText') return { width: String(_a[0]).length * 7 };
         if (name === 'drawImage') draws.images++;
         if (name === 'fillRect') draws.rects++;
         if (name === 'fillText') draws.texts++;
@@ -95,6 +96,36 @@ describe('match lifecycle', () => {
     expect(audioLog.length).toBeGreaterThan(5);
     expect(new Set(audioLog).size).toBeGreaterThan(2);
     expect(haptics.length).toBeGreaterThan(0);
+  });
+
+  it('an order to the ally gives immediate feedback: sound, haptic, toast and a highlighted order', () => {
+    audioLog.length = 0;
+    haptics.length = 0;
+    const s = new GameSession({ ...CTF_OPTS }, 1, deps);
+    expect(s.allyOrder).toBe(0);
+    s.setAllyOrder(1);
+    expect(s.allyOrder).toBe(1);
+    expect(audioLog).toContain('pickup');
+    expect(haptics).toContain('light');
+    const r = recorder();
+    r.canvas.width = 1912;
+    r.canvas.height = 880;
+    const texts: string[] = [];
+    const ctx = new Proxy(r.ctx as object, { get: (t, n: string) => (n === 'fillText' ? (x: string) => { texts.push(x); } : n === 'measureText' ? (x: string) => ({ width: x.length * 7 }) : (t as Record<string, unknown>)[n]), set: () => true }) as unknown as CanvasRenderingContext2D;
+    s.draw(ctx, frame(VIEWPORTS[0], true), 0);
+    expect(texts).toContain('Ally: Take their flag!');
+    for (let t = 0; t < 40; t++) s.tick(botInput(s.match, s.match.fighters[0]!));
+    texts.length = 0;
+    s.draw(ctx, frame(VIEWPORTS[0], true), 0);
+    expect(texts).not.toContain('Ally: Take their flag!'); // the toast fades after about two seconds
+  });
+
+  it('orders are ignored (no toast, no sound) when there is no ally', () => {
+    audioLog.length = 0;
+    const s = new GameSession({ ...DM_OPTS }, 1, deps);
+    s.setAllyOrder(1);
+    expect(s.allyOrder).toBe(-1);
+    expect(audioLog).not.toContain('pickup');
   });
 
   it('can order the ally only in a 2v2 CTF match', () => {

@@ -4,7 +4,7 @@ import type { Sprites } from '../../src/assets/sprites';
 import { createMatch } from '../../src/engine/match';
 import { Effects } from '../../src/render/effects';
 import { drawActors, drawFighter } from '../../src/render/fighters';
-import { drawControls, drawHud } from '../../src/render/hud';
+import { drawControls, drawHud, drawToast } from '../../src/render/hud';
 import { newWorldAnim } from '../../src/render/world';
 import { computeLayout } from '../../src/input/layout';
 import { CTF_OPTS, DM_OPTS, REAL_ASSETS, REAL_MAPS } from '../engine/real';
@@ -14,8 +14,11 @@ interface Call { name: string; args: unknown[] }
 function mockCtx() {
   const calls: Call[] = [];
   const ctx = new Proxy({}, {
-    get: (_t, name: string) => (...args: unknown[]) => { calls.push({ name, args }); },
-    set: () => true,
+    get: (_t, name: string) => (...args: unknown[]) => {
+      calls.push({ name, args });
+      return name === 'measureText' ? { width: String(args[0]).length * 7 } : undefined;
+    },
+    set: (_t, name: string, value: unknown) => { calls.push({ name: `set:${name}`, args: [value] }); return true; },
   }) as unknown as CanvasRenderingContext2D;
   return { ctx, calls };
 }
@@ -146,5 +149,23 @@ describe('lift riders in the actor pass', () => {
     const tram = mockCtx();
     drawActors(tram.ctx, m, sprites, newWorldAnim());
     expect(tram.calls.filter((c) => c.name === 'drawImage').length).toBeGreaterThan(0);
+  });
+});
+
+describe('order feedback', () => {
+  const ACTIVE = 'rgba(255,163,26,0.6)';
+  it('highlights only the chosen order pill', () => {
+    const layout = computeLayout(956, 440, safe, true);
+    const none = mockCtx();
+    drawControls(none.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 2);
+    expect(none.calls.filter((c) => c.name === 'set:fillStyle' && c.args[0] === ACTIVE)).toHaveLength(0);
+    const second = mockCtx();
+    drawControls(second.ctx, layout, new Set(), { active: false, x: 0, y: 0 }, 2, 1);
+    expect(second.calls.filter((c) => c.name === 'set:fillStyle' && c.args[0] === ACTIVE)).toHaveLength(1);
+  });
+  it('draws a toast inside the screen', () => {
+    const t = mockCtx();
+    drawToast(t.ctx, 'Ally: Defend the base', vp, safe, 74);
+    expect(t.calls.some((c) => c.name === 'fillText' && c.args[0] === 'Ally: Defend the base')).toBe(true);
   });
 });

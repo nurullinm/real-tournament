@@ -58,12 +58,21 @@ export function createTouchInput(el: HTMLElement, initial: ButtonLayout, opts: T
     return { x: dx, y: dy };
   };
 
+  /** capture keeps drags working outside the canvas, but a failure (stale pointer, odd WebView) must never eat the tap */
+  const capture = (id: number): void => {
+    try {
+      el.setPointerCapture?.(id);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const down = (e: Event): void => {
     const ev = e as PointerLike;
     const { x, y } = pos(ev);
     const b = hitTest(layout, x, y);
     if (b) {
-      el.setPointerCapture?.(ev.pointerId);
+      capture(ev.pointerId);
       if (b.id === 'weaponNext') delta = 1;
       else if (b.id.startsWith('order')) opts.onOrder?.(Number(b.id.slice(5)) as 0 | 1 | 2);
       pointers.set(ev.pointerId, HOLD.has(b.id) ? { kind: 'button', id: b.id } : { kind: 'none' });
@@ -71,7 +80,7 @@ export function createTouchInput(el: HTMLElement, initial: ButtonLayout, opts: T
       return;
     }
     if (inStickZone(layout, x, y) && stickOwner() === undefined) {
-      el.setPointerCapture?.(ev.pointerId);
+      capture(ev.pointerId);
       pointers.set(ev.pointerId, { kind: 'stick', ...knob(x, y) });
       ev.preventDefault();
       return;

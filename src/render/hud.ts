@@ -99,7 +99,7 @@ function circle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
 }
 
 /** Translucent shooter controls: joystick with a knob, round action buttons on an arc, small pills for ally orders. */
-export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout, held: ReadonlySet<ButtonId>, stick: StickState, dpr: number): void {
+export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout, held: ReadonlySet<ButtonId>, stick: StickState, dpr: number, activeOrder = -1): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const s = layout.stick;
   circle(ctx, s.cx, s.cy, s.r, 'rgba(255,255,255,0.09)', 'rgba(255,255,255,0.32)');
@@ -121,16 +121,17 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
 
   for (const b of layout.buttons) {
     const on = held.has(b.id);
-    const fill = on ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.16)';
+    const chosen = b.id === `order${activeOrder}`;
+    const fill = chosen ? 'rgba(255,163,26,0.6)' : on ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.16)';
     if (b.shape === 'pill') {
       ctx.beginPath();
       ctx.roundRect(b.x, b.y, b.w, b.h, b.h / 2);
       ctx.fillStyle = fill;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = chosen ? 'rgba(255,200,110,0.95)' : 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = chosen ? 2 : 1.5;
       ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
       ctx.font = `700 ${Math.round(b.h * 0.34)}px system-ui, sans-serif`;
       ctx.fillText(ORDER_LABELS[b.id] ?? '', b.x + b.w / 2, b.y + b.h / 2);
       continue;
@@ -168,4 +169,20 @@ export function drawControls(ctx: CanvasRenderingContext2D, layout: ButtonLayout
       }
     }
   }
+}
+
+/** Short message pill under the score (e.g. confirming an order to the ally). */
+export function drawToast(ctx: CanvasRenderingContext2D, textLine: string, vp: Viewport, safe: Insets, y: number): void {
+  ctx.setTransform(vp.dpr, 0, 0, vp.dpr, 0, 0);
+  ctx.font = '600 13px ui-rounded, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const w = Math.min(ctx.measureText(textLine).width + 24, vp.w - safe.l - safe.r - 16);
+  const x = vp.w / 2 - w / 2;
+  ctx.fillStyle = 'rgba(8,10,30,0.72)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, 26, 13);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(textLine, vp.w / 2, y + 13);
 }
