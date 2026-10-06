@@ -12,3 +12,6 @@ tools/cfr.jar
 tools/out/
 tools/jdk/
 art/
+
+# wrangler local state (wrangler dev)
+.wrangler/
