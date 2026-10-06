@@ -193,3 +193,6 @@ h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.08em; text-transform: u
 .btn.team.t0.on { background: #3a5bff; color: #fff; }
 .btn.team.t1.on { background: #e03030; color: #fff; }
 .btn.team:disabled { opacity: 0.35; }
+/* lobby tabs: two identical buttons; the open one is marked by the accent outline and text, not by a different fill */
+.lobby-tabs .btn.chip { flex: 1 1 0; min-height: 38px; background: #15184a; color: var(--ink, #fff); border: 2px solid var(--line); box-shadow: none; }
+.lobby-tabs .btn.chip.hot, .lobby-tabs .btn.chip:active { background: #15184a; color: var(--accent); border-color: var(--accent); }
