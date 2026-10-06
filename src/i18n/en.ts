@@ -104,7 +104,7 @@ export const en = {
   'help.ctf':
     "It's a team game (two vs two). In this game frags don't matter. The objective of the game is to steal the enemy flag and bring it to your own base. Only when the flag makes a hard trek from one base to another, the team obtains a point.\n\nThe point isn't given, when your flag is also captured by the enemy team, first you need to retake it.\n\nIf a player carrying a flag dies, the flag returns to the base.\n\nYou can give your ally one of three orders:\n\nDefend the base - the ally moves within your base.\nTake their flag! - the ally runs to the enemy flag.\nFreelance! - the ally moves wherever he wants.\n\nTo command your ally, use the order buttons on the screen or the pause menu.",
 
-  'about.text': 'Real Tournament (2012)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.\nBuild {build}',
+  'about.text': 'Real Tournament (2026)\nPublisher: RMG\nDeveloper: Qplaze\n\nBrowser port for Telegram.\nBuild {build}',
   'rotate.title': 'Rotate your phone',
   'rotate.hint': 'Real Tournament is played in landscape',
   'boot.failed': 'Failed to start: {message}',
