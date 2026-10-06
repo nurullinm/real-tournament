@@ -9,10 +9,10 @@ import type { ButtonLayout, ButtonId, Insets } from '../input/layout';
 import type { Platform } from '../platform/telegram';
 import { cameraTarget, computeCamera, followCamera, type Point } from '../render/camera';
 import { Effects } from '../render/effects';
-import { drawActors } from '../render/fighters';
+import { drawActors, drawFighter } from '../render/fighters';
 import { drawControls, drawHud } from '../render/hud';
 import { computeScale } from '../render/scale';
-import { advanceWorldAnim, beginWorld, drawWorld, newWorldAnim, TILE } from '../render/world';
+import { advanceWorldAnim, beginWorld, drawTram, drawWorld, newWorldAnim, TILE } from '../render/world';
 
 export const TICK_HZ = 1000 / 60;
 const TARGET_TILES_H = 14;
@@ -119,7 +119,8 @@ export class GameSession {
       { w: m.mapWidth, h: m.mapHeight },
     );
     beginWorld(ctx, cam, si.scale);
-    // lift cars move up to 14 px per tick: interpolate them exactly like their passengers
+    // interpolate movers for smooth 60 fps on a 16.7 Hz simulation (teleports and respawns are not smoothed);
+    // cars and the tram move up to 14 px per tick, so they are interpolated exactly like their passengers
     const carSaved: [number, number][] = [];
     this.prevCarY.forEach((py, i) => {
       const car = m.pobjs[i]!;
@@ -128,9 +129,6 @@ export class GameSession {
     });
     const tramSaved = m.tram.x;
     if (Math.abs(m.tram.x - this.prevTramX) <= 24) m.tram.x = Math.round(this.prevTramX + (m.tram.x - this.prevTramX) * alpha);
-    drawWorld(ctx, m, cam, this.view, this.deps.sprites, this.anim);
-    this.effects.draw(ctx, this.deps.sprites);
-    // interpolate movers for smooth 60 fps on a 16.7 Hz simulation (teleports and respawns are not smoothed)
     const saved = m.fighters.map((x) => ({ x: x.x, y: x.y }));
     m.fighters.forEach((fi, i) => {
       const p = this.prev[i];
@@ -144,13 +142,17 @@ export class GameSession {
       if (px !== undefined) p.x = Math.round(px + (p.x - px) * alpha);
     });
     try {
-      drawActors(ctx, m, this.deps.sprites, this.anim);
+      const { sprites } = this.deps;
+      drawWorld(ctx, m, cam, this.view, sprites, this.anim, (rider) => drawFighter(ctx, rider, m.tick, sprites, this.anim));
+      drawActors(ctx, m, sprites, this.anim);
+      this.effects.draw(ctx, sprites);
+      drawTram(ctx, m, this.view, cam, sprites);
     } finally {
       m.fighters.forEach((fi, i) => { fi.x = saved[i]!.x; fi.y = saved[i]!.y; });
       carSaved.forEach(([i, y]) => { m.pobjs[i]!.y = y; });
       m.tram.x = tramSaved;
+      m.projectiles.forEach((p, i) => { p.x = savedProj[i]!; });
     }
-    m.projectiles.forEach((p, i) => { p.x = savedProj[i]!; });
     drawHud(ctx, m, 0, { w: f.w, h: f.h, dpr: f.dpr }, f.safe);
     if (f.showControls) drawControls(ctx, f.layout, f.held, f.dpr);
   }

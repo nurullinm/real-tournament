@@ -39,7 +39,11 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, tick: num
 
 /** Fighters (lift passengers included), projectiles and laser rays. World space. */
 export function drawActors(ctx: CanvasRenderingContext2D, m: Match, sprites: Sprites, anim: WorldAnim): void {
-  for (let i = 0; i < m.numFighters; i++) drawFighter(ctx, m.fighters[i]!, m.tick, sprites, anim);
+  for (let i = 0; i < m.numFighters; i++) {
+    const f = m.fighters[i]!;
+    if (f.isPassenger && f.liftcar >= 0) continue; // lift riders are drawn together with their car (drawWorld)
+    drawFighter(ctx, f, m.tick, sprites, anim);
+  }
   for (const r of m.rays) {
     const age = m.tick - r.tick;
     const lo = Math.min(r.x1, r.x2);

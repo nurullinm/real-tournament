@@ -1,5 +1,5 @@
 import type { Sprites } from '../assets/sprites';
-import type { Match } from '../engine/types';
+import type { Fighter, Match } from '../engine/types';
 import type { Point } from './camera';
 import { drawFrame } from './frames';
 
@@ -48,7 +48,11 @@ export function beginWorld(ctx: CanvasRenderingContext2D, cam: Point, scale: num
 }
 
 /** Draws the tile layer, pickups/flags/lift cars and the tram. The ctx must be in `beginWorld` space. */
-export function drawWorld(ctx: CanvasRenderingContext2D, m: Match, cam: Point, view: { w: number; h: number }, sprites: Sprites, anim: WorldAnim): void {
+export function drawWorld(
+  ctx: CanvasRenderingContext2D, m: Match, cam: Point, view: { w: number; h: number }, sprites: Sprites, anim: WorldAnim,
+  /** draws a lift passenger; called right after its car so the door frames drawn later cover it, as in the original */
+  drawRider?: (f: Fighter) => void,
+): void {
   const u0 = Math.max(0, Math.floor(cam.x / TILE));
   const v0 = Math.max(0, Math.floor(cam.y / TILE));
   const u1 = Math.min(m.ntilesx - 1, Math.floor((cam.x + view.w) / TILE));
@@ -64,6 +68,13 @@ export function drawWorld(ctx: CanvasRenderingContext2D, m: Match, cam: Point, v
     if (frame === null) continue;
     if (p.x < cam.x - 32 || p.x > cam.x + view.w + 32 || p.y < cam.y - 32 || p.y > cam.y + view.h + 48) continue;
     drawFrame(ctx, sprites, frame, p.x, p.y);
+    if ((p.type === 1 || p.type === 18 || p.type === 19) && p.data2 >= 0 && drawRider) drawRider(m.fighters[p.data2]!);
   }
-  if (m.tram.y !== 0) drawFrame(ctx, sprites, 126, m.tram.x, m.tram.y);
+}
+
+/** The tram is drawn after fighters and effects (it can pass in front of them), like the original. */
+export function drawTram(ctx: CanvasRenderingContext2D, m: Match, view: { w: number; h: number }, cam: Point, sprites: Sprites): void {
+  if (m.tram.y === 0) return;
+  if (m.tram.x < cam.x - 64 || m.tram.x > cam.x + view.w + 64) return;
+  drawFrame(ctx, sprites, 126, m.tram.x, m.tram.y);
 }

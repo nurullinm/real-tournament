@@ -120,3 +120,20 @@ describe('actors and effects', () => {
     expect(fx.count).toBe(30);
   });
 });
+
+describe('lift riders in the actor pass', () => {
+  it('are skipped (they are drawn with their car) while tram passengers are drawn normally', () => {
+    const m = createMatch(DM_OPTS, REAL_MAPS[0]!, 1, REAL_ASSETS);
+    for (const f of m.fighters) f.hp = 0; // nobody draws
+    m.fighters[0]!.hp = 100;
+    m.fighters[0]!.isPassenger = true;
+    m.fighters[0]!.liftcar = 1;
+    const lift = mockCtx();
+    drawActors(lift.ctx, m, sprites, newWorldAnim());
+    expect(lift.calls.filter((c) => c.name === 'drawImage')).toHaveLength(0);
+    m.fighters[0]!.liftcar = -1; // on the tram
+    const tram = mockCtx();
+    drawActors(tram.ctx, m, sprites, newWorldAnim());
+    expect(tram.calls.filter((c) => c.name === 'drawImage').length).toBeGreaterThan(0);
+  });
+});
