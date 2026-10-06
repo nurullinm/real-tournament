@@ -1,7 +1,7 @@
 import type { GameMap } from '../../src/assets/types';
 import { setX, setY } from '../../src/engine/fighter';
 import type { Fighter, Match, MatchOptions } from '../../src/engine/types';
-import { buildBaseMatch } from '../../src/engine/world';
+import { buildBaseMatch, findPoToTheLeft } from '../../src/engine/world';
 
 /** '#' = solid tile (id 1), '.' = empty (id 0). */
 export function makeMap(rows: string[], extra: Partial<GameMap> = {}): GameMap {
@@ -41,4 +41,27 @@ export function place(f: Fighter, x: number, y: number, supported: boolean): voi
   setY(f, y);
   f.hp = 100;
   f.hasSupport = supported;
+}
+
+/** Re-computes the pobj scan window after moving a fighter by hand. */
+export function syncWindow(m: Match, f: Fighter): void {
+  f.leftPoM1 = findPoToTheLeft(m, f.x - 12);
+  f.rightPo = findPoToTheLeft(m, f.x + 12);
+}
+
+/** Room with extra pobjs/nodes; sides: fighter i is its own side (DM). */
+export function roomMatchWith(extra: Partial<GameMap>, opts: Partial<MatchOptions> = {}, seed = 1): Match {
+  return buildBaseMatch({ ...BASE_OPTS, ...opts }, makeMap(ROOM, extra), seed, TEST_ASSETS);
+}
+
+export function duel(m: Match, n = 2): void {
+  m.numFighters = n;
+  m.numSides = n;
+  for (let i = 0; i < n; i++) {
+    const f = m.fighters[i]!;
+    f.side = i;
+    f.color = i & 1;
+    f.hp = 100;
+    f.hasSupport = true;
+  }
 }
