@@ -110,3 +110,56 @@ export function randomCode(rand: () => number = Math.random): string {
 export function normalizeCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH);
 }
+
+/** Largest accepted message: `hello` carries Telegram's signed initData, everything else is tiny. */
+export const MAX_HELLO_CHARS = 4096;
+export const MAX_MESSAGE_CHARS = 512;
+
+const isInt = (v: unknown, lo: number, hi: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi;
+
+/**
+ * Parses and validates one client message from the wire. Anything that is not exactly a well-formed message of the
+ * protocol (wrong type, out-of-range number, oversize, not JSON) gives null: the types in ClientMsg exist only at compile
+ * time, so a modified client can send anything.
+ */
+export function parseClientMessage(raw: unknown): ClientMsg | null {
+  if (typeof raw !== 'string' || raw.length > MAX_HELLO_CHARS) return null;
+  let m: Record<string, unknown>;
+  try {
+    const v: unknown = JSON.parse(raw);
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return null;
+    m = v as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  if (m.t !== 'hello' && raw.length > MAX_MESSAGE_CHARS) return null;
+  switch (m.t) {
+    case 'hello':
+      if (typeof m.name !== 'string' || typeof m.create !== 'boolean') return null;
+      if (m.initData !== undefined && (typeof m.initData !== 'string' || m.initData.length > 3072)) return null;
+      return { t: 'hello', name: m.name, create: m.create, ...(m.initData !== undefined ? { initData: m.initData as string } : {}) };
+    case 'name':
+      return typeof m.name === 'string' ? { t: 'name', name: m.name } : null;
+    case 'color':
+      return isInt(m.color, 0, 3) ? { t: 'color', color: m.color } : null;
+    case 'team':
+      return m.team === 0 || m.team === 1 ? { t: 'team', team: m.team } : null;
+    case 'cfg':
+      return typeof m.cfg === 'object' && m.cfg !== null && !Array.isArray(m.cfg) ? { t: 'cfg', cfg: m.cfg as RoomConfig } : null;
+    case 'start':
+      return { t: 'start' };
+    case 'over':
+      return { t: 'over' };
+    case 'ping':
+      return typeof m.ts === 'number' && Number.isFinite(m.ts) ? { t: 'ping', ts: m.ts } : null;
+    case 'in': {
+      if (!isInt(m.c, 0, 0xffff)) return null;
+      if (!(m.ws === -1 || m.ws === 0 || m.ws === 1 || m.ws === 2)) return null;
+      if (!(m.wd === -1 || m.wd === 0 || m.wd === 1)) return null;
+      if (m.at !== undefined && !(typeof m.at === 'number' && Number.isFinite(m.at))) return null;
+      return { t: 'in', c: m.c, ws: m.ws, wd: m.wd, ...(m.at !== undefined ? { at: m.at as number } : {}) };
+    }
+    default:
+      return null;
+  }
+}

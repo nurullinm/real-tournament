@@ -1,5 +1,7 @@
 /** Telegram webhook: answers /start and /play with a message carrying an "open the game" button. */
 
+import { safeEqual } from './safe';
+
 export interface TgEnv { BOT_TOKEN?: string; WEBHOOK_SECRET?: string; GAME_URL?: string }
 
 interface Update { message?: { chat?: { id?: number }; text?: string; from?: { language_code?: string } } }
@@ -32,7 +34,7 @@ export const sendViaApi: SendMessage = async (token, body) => {
 /** Handles one update; returns the HTTP status for Telegram. Wrong or missing secret: 403, nothing is processed. */
 export async function handleTelegram(req: Request, env: TgEnv, send: SendMessage = sendViaApi): Promise<Response> {
   const secret = env.WEBHOOK_SECRET;
-  if (!env.BOT_TOKEN || !secret || req.headers.get('X-Telegram-Bot-Api-Secret-Token') !== secret) return new Response('forbidden', { status: 403 });
+  if (!env.BOT_TOKEN || !secret || !safeEqual(req.headers.get('X-Telegram-Bot-Api-Secret-Token') ?? '', secret)) return new Response('forbidden', { status: 403 });
   let update: Update;
   try { update = (await req.json()) as Update; } catch { return new Response('bad request', { status: 400 }); }
   const msg = update.message;

@@ -1,3 +1,5 @@
+import { safeEqual } from './safe';
+
 /** Telegram Mini App `initData` check (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app). */
 
 const enc = new TextEncoder();
@@ -19,7 +21,7 @@ export async function verifyInitData(initData: string, botToken: string, nowSec 
   params.delete('hash');
   const check = [...params.entries()].map(([k, v]) => `${k}=${v}`).sort().join('\n');
   const secret = await hmac(enc.encode('WebAppData'), botToken);
-  if (hex(await hmac(secret, check)) !== hash) return null;
+  if (!safeEqual(hex(await hmac(secret, check)), hash)) return null;
   const authDate = Number(params.get('auth_date'));
   if (!Number.isFinite(authDate) || nowSec - authDate > 86400) return null;
   try {
